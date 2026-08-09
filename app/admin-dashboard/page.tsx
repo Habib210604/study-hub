@@ -15,7 +15,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('announcements'); // 'announcements' | 'users'
 
   // Announcements state
-  const [announcements, setAnnouncements] = useState([]);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
   const [newTitle, setNewTitle] = useState('');
   const [newMessage, setNewMessage] = useState('');
   const [audienceMode, setAudienceMode] = useState('all'); // 'all' | 'specific'
