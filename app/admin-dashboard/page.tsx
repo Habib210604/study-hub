@@ -83,7 +83,7 @@ export default function AdminDashboard() {
     );
   };
 
-  const selectAllRecipients = () => {
+  const [selectedRecipientIds, setSelectedRecipientIds] = useState<string[]>([]);
     if (selectedRecipientIds.length === users.length) {
       setSelectedRecipientIds([]);
     } else {
