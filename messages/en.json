@@ -1,0 +1,55 @@
+{
+  "Navbar": {
+    "dashboard": "Dashboard",
+    "cloudConnected": "Cloud Connected",
+    "logout": "Logout"
+  },
+  "Announcement": {
+    "badge": "Announcement",
+    "title": "Welcome to Study Hub!",
+    "message": "Check back here for important announcements and exam updates.",
+    "creatorPanel": "Creator Panel"
+  },
+  "Stats": {
+    "todaysFocus": "Today's Focus",
+    "tasksDone": "Tasks Done",
+    "activeSubjects": "Active Subjects",
+    "modules": "Modules"
+  },
+  "Pomodoro": {
+    "focusSession": "Focus Session (25m)",
+    "shortBreak": "Short Break (5m)",
+    "workSub": "🎯 Stay locked in. No distractions.",
+    "breakSub": "☕ Time to stretch and refresh.",
+    "startFocus": "Start Focus",
+    "pause": "Pause"
+  },
+  "Goals": {
+    "title": "Daily Goals",
+    "placeholder": "Add a new goal...",
+    "empty": "No goals added yet!"
+  },
+  "Calendar": {
+    "title": "Academic Calendar & Schedule",
+    "subtitle": "Tunisian Public Holidays are automatically marked in",
+    "addExam": "Add Exam Date",
+    "placeholder": "Exam / Event Title (e.g. Biostatistics Exam)"
+  },
+  "Modules": {
+    "title": "Subject & Module Progress",
+    "subtitle": "Track remaining lectures and upcoming exam dates",
+    "namePlaceholder": "Subject Name (e.g. Radiology)",
+    "totalPlaceholder": "Total Lectures (e.g. 12)",
+    "addModule": "Add Module",
+    "progress": "Progress",
+    "completed": "🎉 Module Completed!",
+    "lectureDone": "+1 Lecture Done",
+    "empty": "No subjects added yet. Add one above!"
+  }
+  
+}
+"AI": {
+  "title": "Study AI Assistant",
+  "placeholder": "Ask anything about your courses...",
+  "send": "Send"
+}

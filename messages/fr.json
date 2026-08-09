@@ -1,0 +1,54 @@
+{
+  "Navbar": {
+    "dashboard": "Tableau de bord",
+    "cloudConnected": "Connecté au Cloud",
+    "logout": "Déconnexion"
+  },
+  "Announcement": {
+    "badge": "Annonce",
+    "title": "Bienvenue sur Study Hub !",
+    "message": "Revenez ici pour les annonces importantes et les mises à jour des examens.",
+    "creatorPanel": "Panneau Créateur"
+  },
+  "Stats": {
+    "todaysFocus": "Focus du jour",
+    "tasksDone": "Tâches faites",
+    "activeSubjects": "Matières actives",
+    "modules": "Modules"
+  },
+  "Pomodoro": {
+    "focusSession": "Session Focus (25m)",
+    "shortBreak": "Pause courte (5m)",
+    "workSub": "🎯 Restez concentré. Pas de distractions.",
+    "breakSub": "☕ Temps de s'étirer et de se rafraîchir.",
+    "startFocus": "Commencer",
+    "pause": "Pause"
+  },
+  "Goals": {
+    "title": "Objectifs du jour",
+    "placeholder": "Ajouter un nouvel objectif...",
+    "empty": "Aucun objectif ajouté pour l'instant !"
+  },
+  "Calendar": {
+    "title": "Calendrier Académique & Planning",
+    "subtitle": "Les jours fériés tunisiens sont automatiquement marqués en",
+    "addExam": "Ajouter une date d'examen",
+    "placeholder": "Titre de l'examen / événement"
+  },
+  "Modules": {
+    "title": "Progression des Matières",
+    "subtitle": "Suivez les cours restants et les dates d'examens à venir",
+    "namePlaceholder": "Nom de la matière (ex: Radiologie)",
+    "totalPlaceholder": "Total des cours (ex: 12)",
+    "addModule": "Ajouter un module",
+    "progress": "Progression",
+    "completed": "🎉 Module Terminé !",
+    "lectureDone": "+1 Cours Fait",
+    "empty": "Aucune matière ajoutée. Ajoutez-en une ci-dessus !"
+  }
+}
+"AI": {
+  "title": "Assistant IA d'Études",
+  "placeholder": "Posez vos questions sur vos cours...",
+  "send": "Envoyer"
+}
