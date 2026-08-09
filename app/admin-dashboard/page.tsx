@@ -77,7 +77,7 @@ export default function AdminDashboard() {
     if (!error && data) setAnnouncements(data);
   };
 
-  const toggleRecipient = (userId) => {
+  const toggleRecipient = (userId: string) => {
     setSelectedRecipientIds((prev) =>
       prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
     );
