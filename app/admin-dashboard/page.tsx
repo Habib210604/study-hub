@@ -11,7 +11,7 @@ import {
 export default function AdminDashboard() {
   const router = useRouter();
   const [checkingAuth, setCheckingAuth] = useState(true);
-  const [session, setSession] = useState(null);
+  const [session, setSession] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('announcements'); // 'announcements' | 'users'
 
   // Announcements state
