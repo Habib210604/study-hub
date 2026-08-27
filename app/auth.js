@@ -3,7 +3,39 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from './supabase';
-import { Lock, Mail, UserPlus, LogIn, User, Shield, ArrowRight } from 'lucide-react';
+import { Lock, Mail, UserPlus, LogIn, User, Shield, ArrowRight, Phone, GraduationCap } from 'lucide-react';
+
+const EDUCATION_LEVELS = [
+  'Primaire',
+  '7ème',
+  '8ème',
+  '9ème',
+  '1ère',
+  '2ème',
+  '3ème',
+  'Bac',
+  'Université',
+];
+
+const BAC_FILIERES = [
+  'Mathématiques',
+  'Sciences Expérimentales',
+  'Économie et Gestion',
+  'Informatique',
+  'Sport',
+  'Technique',
+  'Lettres',
+];
+
+const DEUXIEME_FILIERES = ['Mathématiques', 'Sciences', 'Lettres', 'Sport', 'Economies'];
+
+// Which grades require a filière, and which list of filières they use.
+// 1ère has no filière — students only pick their filière starting in 2ème.
+const FILIERE_MAP = {
+  '2ème': DEUXIEME_FILIERES,
+  '3ème': BAC_FILIERES,
+  'Bac': BAC_FILIERES,
+};
 
 export default function Auth({ onLogin }) {
   const router = useRouter();
@@ -16,6 +48,13 @@ export default function Auth({ onLogin }) {
   const [infoMsg, setInfoMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // --- New signup-only fields ---
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [educationLevel, setEducationLevel] = useState('');
+  const [filiere, setFiliere] = useState('');
+
   const handleAuth = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -23,7 +62,39 @@ export default function Auth({ onLogin }) {
     setInfoMsg('');
 
     if (isSignUp) {
-      const { error } = await supabase.auth.signUp({ email, password });
+      // Basic validation for the required signup fields
+      if (!firstName.trim() || !lastName.trim() || !phone.trim() || !educationLevel) {
+        setErrorMsg('Please fill in your name, phone number, and education level.');
+        setLoading(false);
+        return;
+      }
+      if (FILIERE_MAP[educationLevel] && !filiere) {
+        setErrorMsg(`Please select your ${educationLevel} filière.`);
+        setLoading(false);
+        return;
+      }
+      // Loose Tunisian phone check: 8 digits, optional +216 prefix
+      const cleanedPhone = phone.replace(/\s/g, '');
+      if (!/^(\+216)?\d{8}$/.test(cleanedPhone)) {
+        setErrorMsg('Please enter a valid Tunisian phone number (8 digits).');
+        setLoading(false);
+        return;
+      }
+
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+            phone: cleanedPhone,
+            education_level: educationLevel,
+            filiere: FILIERE_MAP[educationLevel] ? filiere : null,
+          },
+        },
+      });
+
       if (error) {
         setErrorMsg(error.message);
       } else {
@@ -56,7 +127,6 @@ export default function Auth({ onLogin }) {
       return;
     }
 
-    // If they picked the Admin tab but the database disagrees, block it.
     if (role === 'admin' && profile.role !== 'admin') {
       await supabase.auth.signOut();
       setErrorMsg('Access denied: You are not authorized as an Admin.');
@@ -98,7 +168,7 @@ export default function Auth({ onLogin }) {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 max-w-md w-full shadow-2xl">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 max-w-md w-full shadow-2xl my-8">
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-teal-400 bg-clip-text text-transparent">
             {isForgotPassword ? 'Reset Password' : isSignUp ? 'Create Study Hub Account' : 'Welcome Back'}
@@ -182,6 +252,89 @@ export default function Auth({ onLogin }) {
             )}
 
             <form onSubmit={handleAuth} className="space-y-4">
+
+              {isSignUp && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 mb-1">First Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        placeholder="Habib"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-sm text-slate-200 focus:outline-none focus:border-teal-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 mb-1">Last Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        placeholder="Souani"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-sm text-slate-200 focus:outline-none focus:border-teal-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">Phone Number</label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-2.5 text-slate-500" size={18} />
+                      <input
+                        type="tel"
+                        required
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="+216 XX XXX XXX"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 pl-10 pr-4 text-sm text-slate-200 focus:outline-none focus:border-teal-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">Class / Grade</label>
+                    <div className="relative">
+                      <GraduationCap className="absolute left-3 top-2.5 text-slate-500" size={18} />
+                      <select
+                        required
+                        value={educationLevel}
+                        onChange={(e) => {
+                          setEducationLevel(e.target.value);
+                          if (!FILIERE_MAP[e.target.value]) setFiliere('');
+                        }}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 pl-10 pr-4 text-sm text-slate-200 focus:outline-none focus:border-teal-500 appearance-none"
+                      >
+                        <option value="" disabled>Select your class/grade...</option>
+                        {EDUCATION_LEVELS.map((level) => (
+                          <option key={level} value={level}>{level}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {FILIERE_MAP[educationLevel] && (
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 mb-1">{educationLevel} Filière</label>
+                      <select
+                        required
+                        value={filiere}
+                        onChange={(e) => setFiliere(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-sm text-slate-200 focus:outline-none focus:border-teal-500 appearance-none"
+                      >
+                        <option value="" disabled>Select your filière...</option>
+                        {FILIERE_MAP[educationLevel].map((f) => (
+                          <option key={f} value={f}>{f}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </>
+              )}
+
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1">Email</label>
                 <div className="relative">

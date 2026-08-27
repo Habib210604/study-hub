@@ -1,40 +1,37 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { Flame, Trophy } from 'lucide-react';
+import { supabase } from '@/app/supabase';
 
 export default function StreakTracker() {
-  const [streak, setStreak] = useState(1);
+  const [streak, setStreak] = useState(null);
 
   useEffect(() => {
-    // Check local storage for last login date and streak count
-    const lastLogin = localStorage.getItem('study_hub_last_login');
-    const currentStreak = parseInt(localStorage.getItem('study_hub_streak') || '1', 10);
-    
-    const today = new Date().toDateString();
+    let isMounted = true;
 
-    if (lastLogin !== today) {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
+    const loadStreak = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
 
-      if (lastLogin === yesterday.toDateString()) {
-        // Logged in consecutive day -> Increase streak!
-        const newStreak = currentStreak + 1;
-        setStreak(newStreak);
-        localStorage.setItem('study_hub_streak', newStreak.toString());
-      } else if (!lastLogin) {
-        // First time ever
-        setStreak(1);
-        localStorage.setItem('study_hub_streak', '1');
-      } else {
-        // Streak broken, reset to 1
-        setStreak(1);
-        localStorage.setItem('study_hub_streak', '1');
+      // Server-side function computes and updates this user's own streak only
+      const { data, error } = await supabase.rpc('update_daily_streak');
+
+      if (!isMounted) return;
+      if (!error && typeof data === 'number') {
+        setStreak(data);
       }
-      localStorage.setItem('study_hub_last_login', today);
-    } else {
-      setStreak(currentStreak);
-    }
+    };
+
+    loadStreak();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
+
+  if (streak === null) {
+    return null; // avoid flashing a wrong number before the real streak loads
+  }
 
   return (
     <div className="flex items-center gap-3 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-2xl shadow-sm">

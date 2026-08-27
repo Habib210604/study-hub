@@ -103,9 +103,11 @@ export async function POST(req: Request) {
       );
     }
 
+    const formattingGuidance = `Formatting rules: write in clear, simple language. You may use **bold** for key terms, bullet points starting with "-", and numbered lists. Do NOT use tables, code blocks, headers with more than 3 #, or nested/complex markdown — keep formatting light and easy to read in a small chat window.`;
+
     const systemPrompt = context
-      ? `You are an expert AI study assistant. Use the following uploaded document context to answer the student's questions accurately:\n\n${context}`
-      : `You are an expert AI study assistant helping a student with their coursework, exams, and subjects.`;
+      ? `You are an expert AI study assistant. Use the following uploaded document context to answer the student's questions accurately:\n\n${context}\n\n${formattingGuidance}`
+      : `You are an expert AI study assistant helping a student with their coursework, exams, and subjects.\n\n${formattingGuidance}`;
 
     const contents = messages.map((m: any) => {
       const parts: any[] = [];

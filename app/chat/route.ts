@@ -103,9 +103,18 @@ export async function POST(req: Request) {
       );
     }
 
+    const formattingGuidance = `Formatting rules for your response (this is displayed in a small chat widget, not a document):
+- Write in plain, clear sentences most of the time.
+- Use **bold** (double asterisks) only around key terms or the single most important phrase in a line — not entire sentences.
+- For lists, start each line with "- " (dash, space) and put each item on its own line. Never write list items separated by commas on one line.
+- Do NOT use tables, code fences (triple backticks), horizontal rules (---), block quotes (>), or headers with more than one #.
+- Do NOT use asterisks for anything except **bold** — never single *italic* asterisks, never asterisks as bullet markers.
+- Keep paragraphs short (1-3 sentences) with a blank line between them.
+- Never output raw symbols like #, *, or - as decoration outside of the bold/list rules above.`;
+
     const systemPrompt = context
-      ? `You are an expert AI study assistant. Use the following uploaded document context to answer the student's questions accurately:\n\n${context}`
-      : `You are an expert AI study assistant helping a student with their coursework, exams, and subjects.`;
+      ? `You are an expert AI study assistant. Use the following uploaded document context to answer the student's questions accurately:\n\n${context}\n\n${formattingGuidance}`
+      : `You are an expert AI study assistant helping a student with their coursework, exams, and subjects.\n\n${formattingGuidance}`;
 
     const contents = messages.map((m: any) => {
       const parts: any[] = [];

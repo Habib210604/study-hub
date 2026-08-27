@@ -7,16 +7,24 @@ import {
   Play, Pause, RotateCcw, CheckCircle2, Clock, BookOpen,
   Sparkles, Plus, Trash2, LogOut, Calendar as CalendarIcon, Megaphone, Sun, Moon, ChevronLeft, ChevronRight,
   Timer, Target, CalendarDays, Layers, BrainCircuit, Folder, FileText, Upload, Download, X,
-  StickyNote, Quote as QuoteIcon, Hourglass, Bot, Search, LayoutGrid, Command, ArrowRight, Circle
+  StickyNote, Quote as QuoteIcon, Hourglass, Bot, Search, LayoutGrid, Command, ArrowRight, Circle, BookOpenCheck, Star, Users, Radio,
+  User
 } from 'lucide-react';
 import { supabase } from './supabase';
 import Auth from './auth';
 import { useLanguage } from '@/context/LanguageContext';
 import StudyAiWidget from '@/components/StudyAiWidget';
+import AssistantFullScreen from '@/components/AssistantFullScreen';
+import PlanGate from '@/components/PlanGate';
+import ResourceDrive from '@/components/ResourceDrive';
+import FeedbackTab from '@/components/FeedbackTab';
+import StudyBuddies from '@/components/StudyBuddies';
+import NotesApp from '@/components/NotesApp';
+import AccountCenter from '@/components/AccountCenter';
 
 const TUNISIAN_HOLIDAYS: Record<string, string> = {
   '01-01': 'New Year\'s Day',
-  '01-14': 'Revolution & Youth Day',
+  '12-17': 'Revolution & Youth Day',
   '03-20': 'Independence Day',
   '04-09': 'Martyrs\' Day',
   '05-01': 'Labor Day',
@@ -43,9 +51,9 @@ const STUDY_QUOTES = [
   "Hard work quietly beats talent that doesn't work hard.",
 ];
 
-type TabKey = 'overview' | 'focus' | 'goals' | 'calendar' | 'notes' | 'folders' | 'flashcards' | 'assistant';
+type TabKey = 'overview' | 'focus' | 'goals' | 'calendar' | 'notes' | 'folders' | 'drive' | 'flashcards' | 'assistant' | 'reviews' | 'buddies' | 'account';
 
-export default function StudyDashboard() {
+function StudyDashboardInner() {
   const { t, language, setLanguage } = useLanguage();
 
   const [session, setSession] = useState<any>(null);
@@ -64,6 +72,13 @@ export default function StudyDashboard() {
   const [mode, setMode] = useState('work');
   const [focusSecondsToday, setFocusSecondsToday] = useState(0);
 
+  // --- Shared Focus Room state ---
+  const [roomActive, setRoomActive] = useState(false);
+  const [roomSeconds, setRoomSeconds] = useState(0);
+  const [roomPresenceCount, setRoomPresenceCount] = useState(0);
+  const roomChannelRef = useRef<any>(null);
+const roomIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
   // --- Customizable Pomodoro durations (in minutes) ---
   const [focusMinutes, setFocusMinutes] = useState(25);
   const [breakMinutes, setBreakMinutes] = useState(5);
@@ -81,10 +96,6 @@ export default function StudyDashboard() {
   const [folderFiles, setFolderFiles] = useState<{ id: number; file_name: string; file_url: string; file_size: string }[]>([]);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [recentFiles, setRecentFiles] = useState<{ id: number; file_name: string; file_url: string; module_id: string | number }[]>([]);
-
-  const [scratchpadContent, setScratchpadContent] = useState('');
-  const [scratchpadStatus, setScratchpadStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
-  const scratchpadTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const [moods, setMoods] = useState<Record<string, string>>({});
   const [moodPickerDate, setMoodPickerDate] = useState<string | null>(null);
@@ -167,7 +178,6 @@ export default function StudyDashboard() {
       fetchModules();
       fetchAnnouncement();
       fetchEvents();
-      fetchScratchpad();
       fetchMoods();
       fetchRecentFiles();
     }
@@ -326,49 +336,54 @@ export default function StudyDashboard() {
     if (!file || !activeFolder || !session?.user) return;
 
     setUploadingFile(true);
-    
-    const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const filePath = `${session.user.id}/${activeFolder.id}/${Date.now()}_${sanitizedFileName}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from('subject-files')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false
+    try {
+      const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+      const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', uploadPreset!);
+      // "raw" covers PDFs and any non-image/video file type
+      formData.append('resource_type', 'raw');
+      formData.append('folder', `subject-files/${session.user.id}/${activeFolder.id}`);
+
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, {
+        method: 'POST',
+        body: formData,
       });
+      const cloudinaryData = await response.json();
 
-    if (uploadError) {
-      alert('Upload failed: ' + uploadError.message);
-      setUploadingFile(false);
-      return;
+      if (!response.ok) {
+        throw new Error(cloudinaryData.error?.message || 'Upload failed');
+      }
+
+      const fileUrl = cloudinaryData.secure_url;
+      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+
+      const { data: dbData, error: dbError } = await supabase
+        .from('module_files')
+        .insert([
+          {
+            module_id: activeFolder.id,
+            user_id: session.user.id,
+            file_name: file.name,
+            file_url: fileUrl,
+            file_size: fileSizeMB,
+          }
+        ])
+        .select();
+
+      if (dbError) {
+        alert('Error saving file record to database: ' + dbError.message);
+      } else if (dbData) {
+        setFolderFiles([...folderFiles, dbData[0]]);
+        fetchRecentFiles();
+      }
+    } catch (err: any) {
+      alert('Upload failed: ' + err.message);
     }
 
-    const { data: publicUrlData } = supabase.storage
-      .from('subject-files')
-      .getPublicUrl(filePath);
-
-    const fileUrl = publicUrlData.publicUrl;
-    const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
-
-    const { data: dbData, error: dbError } = await supabase
-      .from('module_files')
-      .insert([
-        {
-          module_id: activeFolder.id,
-          user_id: session.user.id,
-          file_name: file.name,
-          file_url: fileUrl,
-          file_size: fileSizeMB,
-        }
-      ])
-      .select();
-
-    if (dbError) {
-      alert('Error saving file record to database: ' + dbError.message);
-    } else if (dbData) {
-      setFolderFiles([...folderFiles, dbData[0]]);
-      fetchRecentFiles();
-    }
     setUploadingFile(false);
     e.target.value = '';
   };
@@ -377,31 +392,6 @@ export default function StudyDashboard() {
     setFolderFiles(folderFiles.filter(f => f.id !== fileId));
     await supabase.from('module_files').delete().eq('id', fileId);
     fetchRecentFiles();
-  };
-
-  const fetchScratchpad = async () => {
-    if (!session?.user) return;
-    const { data, error } = await supabase
-      .from('scratchpad')
-      .select('content')
-      .eq('user_id', session.user.id)
-      .maybeSingle();
-    if (!error && data) setScratchpadContent(data.content || '');
-  };
-
-  const handleScratchpadChange = (value: string) => {
-    setScratchpadContent(value);
-    setScratchpadStatus('saving');
-    if (scratchpadTimeout.current) clearTimeout(scratchpadTimeout.current);
-    scratchpadTimeout.current = setTimeout(async () => {
-      if (!session?.user) return;
-      await supabase.from('scratchpad').upsert({
-        user_id: session.user.id,
-        content: value,
-        updated_at: new Date().toISOString(),
-      });
-      setScratchpadStatus('saved');
-    }, 800);
   };
 
   const fetchMoods = async () => {
@@ -472,6 +462,68 @@ export default function StudyDashboard() {
     }
   };
 
+  // --- Shared Focus Room: auto-running, uneditable timer that feeds Today's Focus ---
+  const joinFocusRoom = () => {
+    if (roomActive) return;
+    setRoomActive(true);
+    setRoomSeconds(0);
+
+    // Presence channel: lets everyone in the room see a live count of who else is focusing
+    const channel = supabase.channel('focus-room', {
+      config: { presence: { key: session?.user?.id || Math.random().toString(36) } },
+    });
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState();
+        setRoomPresenceCount(Object.keys(state).length);
+      })
+      .subscribe(async (status: string) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({ joined_at: new Date().toISOString() });
+        }
+      });
+    roomChannelRef.current = channel;
+
+    // Count-up timer: every second, add to both the room display AND today's real focus total
+    roomIntervalRef.current = setInterval(() => {
+      setRoomSeconds((prev) => prev + 1);
+      setFocusSecondsToday((prevSecs) => {
+        const updatedSecs = prevSecs + 1;
+        const todayStr = new Date().toISOString().slice(0, 10);
+        localStorage.setItem(`focus_time_${todayStr}`, updatedSecs.toString());
+        return updatedSecs;
+      });
+    }, 1000);
+  };
+
+  const leaveFocusRoom = () => {
+    setRoomActive(false);
+    if (roomIntervalRef.current) clearInterval(roomIntervalRef.current);
+    if (roomChannelRef.current) {
+      roomChannelRef.current.untrack();
+      supabase.removeChannel(roomChannelRef.current);
+      roomChannelRef.current = null;
+    }
+  };
+
+  // Clean up the room timer/channel if the user navigates away entirely
+  useEffect(() => {
+    return () => {
+      if (roomIntervalRef.current) clearInterval(roomIntervalRef.current);
+      if (roomChannelRef.current) supabase.removeChannel(roomChannelRef.current);
+    };
+  }, []);
+
+  const formatRoomTime = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return h > 0
+      ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+      : `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -523,8 +575,12 @@ export default function StudyDashboard() {
     { key: 'calendar', label: t('calendarEvents') || 'Calendar', icon: CalendarDays },
     { key: 'notes', label: t('quickNotes') || 'Notes', icon: StickyNote },
     { key: 'folders', label: t('subjectFolders') || 'Subjects', icon: Folder },
+    { key: 'drive', label: 'Drive', icon: BookOpenCheck },
+    { key: 'buddies', label: 'Study Buddies', icon: Users },
     { key: 'flashcards', label: t('aiFlashcards') || 'Flashcards', icon: BrainCircuit },
     { key: 'assistant', label: 'Assistant', icon: Bot },
+    { key: 'reviews', label: 'Reviews', icon: Star },
+    { key: 'account', label: 'Account', icon: User },
   ];
 
   const commandResults = TABS.filter((tabItem) =>
@@ -532,7 +588,7 @@ export default function StudyDashboard() {
   );
 
   if (checkingAuth) {
-    return <div className="min-h-screen bg-[#09090B] text-[#71717A] flex items-center justify-center text-sm font-['Inter']">{t('checkingSession') || 'Checking session...'}</div>;
+    return <div className="min-h-screen bg-[var(--bg)] text-[var(--text-muted)] flex items-center justify-center text-sm font-['Inter']">{t('checkingSession') || 'Checking session...'}</div>;
   }
 
   if (!session) {
@@ -540,19 +596,77 @@ export default function StudyDashboard() {
   }
 
   return (
-    <div className={`min-h-screen font-['Inter'] transition-colors duration-300 relative flex ${theme === 'light' ? 'bg-slate-50 text-slate-900' : 'bg-[#09090B] text-[#F2F2F5]'}`}>
+    <div className={`theme-${theme} min-h-screen font-['Inter'] transition-colors duration-300 relative flex bg-[var(--bg)] text-[var(--text)]`}>
 
       <style jsx global>{`
+        :root {
+          --bg: #09090B;
+          --panel: #111113;
+          --panel-hover: #16161a;
+          --border: rgba(255,255,255,0.07);
+          --border-strong: rgba(255,255,255,0.16);
+          --border-faint: rgba(255,255,255,0.04);
+          --text: #F2F2F5;
+          --text-secondary: #D4D4D8;
+          --text-muted: #71717A;
+          --text-muted-2: #A1A1AA;
+          --text-faint: #52525B;
+          --surface-1: rgba(255,255,255,0.04);
+          --surface-2: rgba(255,255,255,0.07);
+          --surface-3: rgba(255,255,255,0.12);
+        }
+        .theme-dark {
+          --bg: #09090B;
+          --panel: #111113;
+          --panel-hover: #16161a;
+          --border: rgba(255,255,255,0.07);
+          --border-strong: rgba(255,255,255,0.16);
+          --border-faint: rgba(255,255,255,0.04);
+          --text: #F2F2F5;
+          --text-secondary: #D4D4D8;
+          --text-muted: #71717A;
+          --text-muted-2: #A1A1AA;
+          --text-faint: #52525B;
+          --surface-1: rgba(255,255,255,0.04);
+          --surface-2: rgba(255,255,255,0.07);
+          --surface-3: rgba(255,255,255,0.12);
+          --accent-amber: #FCD34D;
+          --accent-indigo: #C7D2FE;
+          --accent-red: #FCA5A5;
+          --accent-emerald: #6EE7B7;
+          --accent-blue: #93C5FD;
+        }
+        .theme-light {
+          --bg: #F6EEE4;
+          --panel: #FFFDFA;
+          --panel-hover: #FBF3E8;
+          --border: rgba(70,45,25,0.10);
+          --border-strong: rgba(70,45,25,0.22);
+          --border-faint: rgba(70,45,25,0.05);
+          --text: #2B2117;
+          --text-secondary: #4A3B2C;
+          --text-muted: #8A7864;
+          --text-muted-2: #6E5D4C;
+          --text-faint: #B4A28C;
+          --surface-1: rgba(70,45,25,0.035);
+          --surface-2: rgba(70,45,25,0.06);
+          --surface-3: rgba(70,45,25,0.10);
+          --accent-amber: #B45309;
+          --accent-indigo: #4338CA;
+          --accent-red: #B91C1C;
+          --accent-emerald: #047857;
+          --accent-blue: #1D4ED8;
+        }
         .panel {
-          background: #111113;
-          border: 1px solid rgba(255,255,255,0.07);
+          background: var(--panel);
+          border: 1px solid var(--border);
         }
         .panel-hover {
           transition: border-color 220ms ease, background-color 220ms ease;
         }
         .panel-hover:hover {
-          border-color: rgba(255,255,255,0.16);
-          background: #141416;
+          border-color: var(--border-strong);
+          background: var(--panel-hover);
         }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .fade-in { animation: fadeIn 320ms cubic-bezier(0.22,1,0.36,1) both; }
@@ -567,10 +681,10 @@ export default function StudyDashboard() {
       `}</style>
 
       {/* --- Sidebar --- */}
-      <aside className="hidden md:flex w-60 shrink-0 flex-col justify-between border-r border-white/[0.07] px-4 py-6 h-screen sticky top-0">
+      <aside className="hidden md:flex w-60 shrink-0 flex-col justify-between border-r border-[var(--border)] px-4 py-6 h-screen sticky top-0">
         <div className="space-y-8">
           <div className="flex items-center gap-2.5 px-2">
-            <div className="w-7 h-7 rounded-lg bg-[#F2A93B] flex items-center justify-center text-black font-bold text-sm font-['Manrope']">S</div>
+            <img src="/logo-icon.png" alt="Study Hub logo" className="w-8 h-8 object-contain" />
             <span className="font-['Manrope'] font-bold text-[15px] tracking-tight">StudySpace</span>
           </div>
 
@@ -583,7 +697,7 @@ export default function StudyDashboard() {
                   key={tabItem.key}
                   onClick={() => setActiveTab(tabItem.key)}
                   className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors cursor-pointer ${
-                    isActive ? 'bg-white/[0.06] text-[#F2F2F5]' : 'text-[#71717A] hover:text-[#D4D4D8] hover:bg-white/[0.03]'
+                    isActive ? 'bg-[var(--surface-2)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-1)]'
                   }`}
                 >
                   <Icon size={16} strokeWidth={2} />
@@ -597,13 +711,13 @@ export default function StudyDashboard() {
         <div className="space-y-3">
           <button
             onClick={() => setCommandOpen(true)}
-            className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-[12px] text-[#71717A] border border-white/[0.07] hover:border-white/[0.14] transition-colors cursor-pointer"
+            className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-[12px] text-[var(--text-muted)] border border-[var(--border)] hover:border-[var(--border-strong)] transition-colors cursor-pointer"
           >
             <span className="flex items-center gap-2"><Search size={13} /> {t('quickSearch') || 'Quick search'}</span>
-            <kbd className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.06] font-['JetBrains_Mono']">⌘K</kbd>
+            <kbd className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--surface-2)] font-['JetBrains_Mono']">⌘K</kbd>
           </button>
-          <div className="px-2 text-[11px] text-[#52525B] truncate">{session.user.email}</div>
-          <button onClick={handleLogout} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-[#71717A] hover:text-red-400 hover:bg-red-500/[0.06] transition-colors cursor-pointer">
+          <div className="px-2 text-[11px] text-[var(--text-faint)] truncate">{session.user.email}</div>
+          <button onClick={handleLogout} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-[var(--text-muted)] hover:text-red-400 hover:bg-red-500/[0.06] transition-colors cursor-pointer">
             <LogOut size={16} /> {t('logout') || 'Logout'}
           </button>
         </div>
@@ -612,9 +726,9 @@ export default function StudyDashboard() {
       <div className="flex-1 min-w-0">
 
         {/* --- Ultra-thin top bar --- */}
-        <div className="sticky top-0 z-40 border-b border-white/[0.07] bg-[#09090B]/90 backdrop-blur-sm">
+        <div className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--bg)]/90 backdrop-blur-sm">
           <div className="max-w-6xl mx-auto px-5 md:px-8 h-14 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-[13px] text-[#A1A1AA]">
+            <div className="flex items-center gap-2 text-[13px] text-[var(--text-muted-2)]">
               <span className="relative flex h-1.5 w-1.5">
                 <span className="pulse-dot absolute inline-flex h-full w-full rounded-full bg-emerald-400" />
               </span>
@@ -624,13 +738,13 @@ export default function StudyDashboard() {
               <StreakTracker />
               <button
                 onClick={() => setLanguage(language === 'en' ? 'fr' : 'en')}
-                className="px-2.5 py-1 text-[12px] font-medium text-[#A1A1AA] hover:text-[#F2F2F5] hover:bg-white/[0.05] rounded-md transition cursor-pointer"
+                className="px-2.5 py-1 text-[12px] font-medium text-[var(--text-muted-2)] hover:text-[var(--text)] hover:bg-[var(--surface-1)] rounded-md transition cursor-pointer"
               >
                 {language?.toUpperCase() || 'LANG'}
               </button>
-              <div className="flex items-center border border-white/[0.07] rounded-md p-0.5">
-                <button onClick={() => toggleTheme('light')} className={`p-1 rounded text-[11px] transition cursor-pointer ${theme === 'light' ? 'bg-white/10 text-[#F2F2F5]' : 'text-[#71717A]'}`}><Sun size={13} /></button>
-                <button onClick={() => toggleTheme('dark')} className={`p-1 rounded text-[11px] transition cursor-pointer ${theme === 'dark' ? 'bg-white/10 text-[#F2F2F5]' : 'text-[#71717A]'}`}><Moon size={13} /></button>
+              <div className="flex items-center border border-[var(--border)] rounded-md p-0.5">
+                <button onClick={() => toggleTheme('light')} className={`p-1 rounded text-[11px] transition cursor-pointer ${theme === 'light' ? 'bg-[var(--surface-3)] text-[var(--text)]' : 'text-[var(--text-muted)]'}`}><Sun size={13} /></button>
+                <button onClick={() => toggleTheme('dark')} className={`p-1 rounded text-[11px] transition cursor-pointer ${theme === 'dark' ? 'bg-[var(--surface-3)] text-[var(--text)]' : 'text-[var(--text-muted)]'}`}><Moon size={13} /></button>
               </div>
             </div>
           </div>
@@ -638,10 +752,22 @@ export default function StudyDashboard() {
 
         <div className="max-w-6xl mx-auto px-5 md:px-8 py-8 space-y-8">
 
-          {/* --- Dynamic greeting header --- */}
-          <div className="fade-in">
-            <h1 className="font-['Manrope'] text-3xl font-extrabold tracking-tight text-[#F2F2F5]">{greeting}{firstName ? `, ${firstName}` : ''}.</h1>
-            <p className="text-[#71717A] text-sm mt-1">{t('readyToFocus') || "Let's make today count."}</p>
+          {/* --- Dynamic greeting header: full-width illustration background, greeting overlaid on the right --- */}
+          <div
+            className="relative rounded-2xl overflow-hidden fade-in border border-[var(--border)] min-h-[180px] md:min-h-[220px] flex items-center justify-end bg-cover bg-center"
+            style={{ backgroundImage: "url('/welcome-banner.png')" }}
+          >
+            {/* Scrim: fades from transparent (left, over the illustration) to solid (right, behind the text) so the greeting stays readable regardless of theme */}
+            <div
+              className="absolute inset-0"
+              style={{ background: 'linear-gradient(to right, transparent 0%, var(--bg) 78%, var(--bg) 100%)', opacity: 0.9 }}
+            />
+            <div className="relative z-10 px-6 md:px-10 py-6 text-right max-w-[65%] md:max-w-[55%]">
+              <h1 className="font-['Manrope'] text-2xl md:text-3xl font-extrabold tracking-tight text-[var(--text)]">
+                {greeting}{firstName ? `, ${firstName}` : ''}.
+              </h1>
+              <p className="text-[var(--text-muted)] text-sm mt-1">{t('readyToFocus') || "Let's make today count."}</p>
+            </div>
           </div>
 
           {announcement && (
@@ -649,18 +775,18 @@ export default function StudyDashboard() {
               <Megaphone size={16} className="text-[#F2A93B] shrink-0" />
               <div className="min-w-0">
                 <span className="text-[11px] uppercase font-bold tracking-wider text-[#F2A93B] mr-2">{t('announcement') || 'Announcement'}</span>
-                <span className="text-sm text-[#F2F2F5] font-medium">{announcement.title}</span>
-                <p className="text-[#71717A] text-xs mt-0.5">{announcement.message}</p>
+                <span className="text-sm text-[var(--text)] font-medium">{announcement.title}</span>
+                <p className="text-[var(--text-muted)] text-xs mt-0.5">{announcement.message}</p>
               </div>
             </div>
           )}
 
           {/* --- Daily Inspiration / Countdown ticker: persistent, always visible under the announcement --- */}
-          <div className="quote-gradient rounded-2xl p-4 border border-white/[0.07] flex items-center gap-3 fade-in">
+          <div className="quote-gradient rounded-2xl p-4 border border-[var(--border)] flex items-center gap-3 fade-in">
             <QuoteIcon size={15} className="text-[#F2A93B] shrink-0" />
-            <p key={quoteIndex} className="font-['Manrope'] text-sm text-[#F2F2F5] italic truncate">"{STUDY_QUOTES[quoteIndex]}"</p>
+            <p key={quoteIndex} className="font-['Manrope'] text-sm text-[var(--text)] italic truncate">"{STUDY_QUOTES[quoteIndex]}"</p>
             {nextExam && daysUntilExam !== null && (
-              <span className="ml-auto shrink-0 flex items-center gap-1.5 text-xs font-['JetBrains_Mono'] text-[#A1A1AA]">
+              <span className="ml-auto shrink-0 flex items-center gap-1.5 text-xs font-['JetBrains_Mono'] text-[var(--text-muted-2)]">
                 <Hourglass size={12} /> {daysUntilExam === 0 ? (t('examToday') || 'Exam today!') : `${daysUntilExam}d → ${nextExam.title}`}
               </span>
             )}
@@ -676,7 +802,7 @@ export default function StudyDashboard() {
                   key={tabItem.key}
                   onClick={() => setActiveTab(tabItem.key)}
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap border transition cursor-pointer ${
-                    isActive ? 'bg-white/[0.06] border-white/[0.14] text-[#F2F2F5]' : 'border-white/[0.07] text-[#71717A]'
+                    isActive ? 'bg-[var(--surface-2)] border-[var(--border-strong)] text-[var(--text)]' : 'border-[var(--border)] text-[var(--text-muted)]'
                   }`}
                 >
                   <Icon size={14} /> {tabItem.label}
@@ -692,10 +818,10 @@ export default function StudyDashboard() {
               {/* Focus & Flow — spans 2 cols */}
               <div className="panel panel-hover rounded-2xl p-6 md:col-span-2 flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-['Manrope'] font-bold text-sm text-[#F2F2F5] flex items-center gap-2">
+                  <h3 className="font-['Manrope'] font-bold text-sm text-[var(--text)] flex items-center gap-2">
                     <Timer size={15} className="text-[#F2A93B]" /> {t('focusFlow') || 'Focus & Flow'}
                   </h3>
-                  <span className="text-[11px] text-[#52525B] font-['JetBrains_Mono']">{mode === 'work' ? 'FOCUS' : 'BREAK'}</span>
+                  <span className="text-[11px] text-[var(--text-faint)] font-['JetBrains_Mono']">{mode === 'work' ? 'FOCUS' : 'BREAK'}</span>
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="relative w-24 h-24 shrink-0">
@@ -711,15 +837,15 @@ export default function StudyDashboard() {
                         style={{ transition: 'stroke-dashoffset 1s linear' }}
                       />
                     </svg>
-                    <div className="absolute inset-0 flex items-center justify-center font-['JetBrains_Mono'] text-sm font-bold text-[#F2F2F5]">
+                    <div className="absolute inset-0 flex items-center justify-center font-['JetBrains_Mono'] text-sm font-bold text-[var(--text)]">
                       {formatTime(timeLeft)}
                     </div>
                   </div>
                   <div className="flex-1 space-y-2">
-                    <button onClick={toggleTimer} className={`w-full py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition cursor-pointer ${isRunning ? 'bg-white/[0.08] text-[#F2F2F5] hover:bg-white/[0.12]' : 'bg-[#F2A93B] text-black hover:brightness-110'}`}>
+                    <button onClick={toggleTimer} className={`w-full py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition cursor-pointer ${isRunning ? 'bg-[var(--surface-2)] text-[var(--text)] hover:bg-[var(--surface-3)]' : 'bg-[#F2A93B] text-black hover:brightness-110'}`}>
                       {isRunning ? <Pause size={15} /> : <Play size={15} />} {isRunning ? (t('pauseTimer') || 'Pause') : (t('startFocus') || 'Start Focus')}
                     </button>
-                    <button onClick={() => setActiveTab('focus')} className="w-full py-1.5 rounded-lg text-xs font-medium text-[#71717A] hover:text-[#F2F2F5] transition cursor-pointer flex items-center justify-center gap-1">
+                    <button onClick={() => setActiveTab('focus')} className="w-full py-1.5 rounded-lg text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text)] transition cursor-pointer flex items-center justify-center gap-1">
                       {t('openTimer') || 'Open full timer'} <ArrowRight size={12} />
                     </button>
                   </div>
@@ -728,64 +854,64 @@ export default function StudyDashboard() {
 
               {/* Quick Stats & Streak */}
               <div className="panel panel-hover rounded-2xl p-6 flex flex-col justify-between">
-                <h3 className="font-['Manrope'] font-bold text-sm text-[#F2F2F5] flex items-center gap-2 mb-4">
+                <h3 className="font-['Manrope'] font-bold text-sm text-[var(--text)] flex items-center gap-2 mb-4">
                   <Sparkles size={15} className="text-[#2DD4BF]" /> {t('quickStats') || 'Quick Stats'}
                 </h3>
                 <div className="space-y-3">
                   <div className="flex items-baseline justify-between">
-                    <span className="text-[11px] text-[#71717A] uppercase tracking-wider">{t('todayFocus') || "Today's Focus"}</span>
-                    <span className="font-['JetBrains_Mono'] text-lg font-bold text-[#F2F2F5]">{formatFocusDuration(focusSecondsToday)}</span>
+                    <span className="text-[11px] text-[var(--text-muted)] uppercase tracking-wider">{t('todayFocus') || "Today's Focus"}</span>
+                    <span className="font-['JetBrains_Mono'] text-lg font-bold text-[var(--text)]">{formatFocusDuration(focusSecondsToday)}</span>
                   </div>
                   <div className="flex items-baseline justify-between">
-                    <span className="text-[11px] text-[#71717A] uppercase tracking-wider">{t('tasksDone') || 'Tasks Done'}</span>
-                    <span className="font-['JetBrains_Mono'] text-lg font-bold text-[#F2F2F5]">{tasks.filter(x => x.is_completed).length}/{tasks.length}</span>
+                    <span className="text-[11px] text-[var(--text-muted)] uppercase tracking-wider">{t('tasksDone') || 'Tasks Done'}</span>
+                    <span className="font-['JetBrains_Mono'] text-lg font-bold text-[var(--text)]">{tasks.filter(x => x.is_completed).length}/{tasks.length}</span>
                   </div>
                   <div className="flex items-baseline justify-between">
-                    <span className="text-[11px] text-[#71717A] uppercase tracking-wider">{t('subjectFolders') || 'Subjects'}</span>
-                    <span className="font-['JetBrains_Mono'] text-lg font-bold text-[#F2F2F5]">{modules.length}</span>
+                    <span className="text-[11px] text-[var(--text-muted)] uppercase tracking-wider">{t('subjectFolders') || 'Subjects'}</span>
+                    <span className="font-['JetBrains_Mono'] text-lg font-bold text-[var(--text)]">{modules.length}</span>
                   </div>
                 </div>
               </div>
 
               {/* Active Subject quick resume */}
               <div className="panel panel-hover rounded-2xl p-6 flex flex-col justify-between">
-                <h3 className="font-['Manrope'] font-bold text-sm text-[#F2F2F5] flex items-center gap-2 mb-3">
+                <h3 className="font-['Manrope'] font-bold text-sm text-[var(--text)] flex items-center gap-2 mb-3">
                   <Folder size={15} className="text-indigo-400" /> {t('activeSubject') || 'Active Subject'}
                 </h3>
                 {activeModule ? (
                   <>
-                    <p className="text-[#F2F2F5] font-semibold text-sm truncate">{activeModule.title}</p>
-                    <p className="text-[#71717A] text-xs mt-1 mb-4">{t('inProgress') || 'In Progress'}</p>
-                    <button onClick={() => openFolder(activeModule)} className="text-xs font-medium text-indigo-300 hover:underline flex items-center gap-1 cursor-pointer">
+                    <p className="text-[var(--text)] font-semibold text-sm truncate">{activeModule.title}</p>
+                    <p className="text-[var(--text-muted)] text-xs mt-1 mb-4">{t('inProgress') || 'In Progress'}</p>
+                    <button onClick={() => openFolder(activeModule)} className="text-xs font-medium text-[var(--accent-indigo)] hover:underline flex items-center gap-1 cursor-pointer">
                       {t('resume') || 'Resume'} <ArrowRight size={12} />
                     </button>
                   </>
                 ) : (
-                  <p className="text-[#52525B] text-xs">{t('noActiveSubject') || 'No active subject yet — add one in Subjects.'}</p>
+                  <p className="text-[var(--text-faint)] text-xs">{t('noActiveSubject') || 'No active subject yet — add one in Subjects.'}</p>
                 )}
               </div>
 
               {/* Today's Roadmap — spans 2 cols */}
               <div className="panel panel-hover rounded-2xl p-6 md:col-span-2">
-                <h3 className="font-['Manrope'] font-bold text-sm text-[#F2F2F5] flex items-center gap-2 mb-4">
+                <h3 className="font-['Manrope'] font-bold text-sm text-[var(--text)] flex items-center gap-2 mb-4">
                   <CalendarDays size={15} className="text-rose-400" /> {t('todaysRoadmap') || "Today's Roadmap"}
                 </h3>
                 <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                   {todaysEvents.length === 0 && openGoals.length === 0 ? (
-                    <p className="text-[#52525B] text-xs py-4 text-center">{t('nothingScheduled') || 'Nothing scheduled — enjoy the clear day.'}</p>
+                    <p className="text-[var(--text-faint)] text-xs py-4 text-center">{t('nothingScheduled') || 'Nothing scheduled — enjoy the clear day.'}</p>
                   ) : (
                     <>
                       {todaysEvents.map((ev) => (
                         <div key={`ev-${ev.id}`} className="flex items-center gap-2.5 py-1.5">
                           <Circle size={7} className="text-rose-400 fill-rose-400 shrink-0" />
-                          <span className="text-sm text-[#D4D4D8] truncate">{ev.title}</span>
-                          <span className="text-[10px] text-[#52525B] ml-auto shrink-0">{t('today') || 'Today'}</span>
+                          <span className="text-sm text-[var(--text-secondary)] truncate">{ev.title}</span>
+                          <span className="text-[10px] text-[var(--text-faint)] ml-auto shrink-0">{t('today') || 'Today'}</span>
                         </div>
                       ))}
                       {openGoals.slice(0, 5).map((g) => (
                         <div key={`g-${g.id}`} onClick={() => toggleTask(g.id, g.is_completed)} className="flex items-center gap-2.5 py-1.5 cursor-pointer group">
-                          <input type="checkbox" checked={false} onChange={() => {}} className="rounded border-white/20 text-teal-400 focus:ring-0 cursor-pointer" />
-                          <span className="text-sm text-[#D4D4D8] truncate group-hover:text-[#F2F2F5]">{g.title}</span>
+                          <input type="checkbox" checked={false} onChange={() => {}} className="rounded border-[var(--border-strong)] text-teal-400 focus:ring-0 cursor-pointer" />
+                          <span className="text-sm text-[var(--text-secondary)] truncate group-hover:text-[var(--text)]">{g.title}</span>
                         </div>
                       ))}
                     </>
@@ -795,23 +921,28 @@ export default function StudyDashboard() {
 
               {/* Resource Quick-Drop */}
               <div className="panel panel-hover rounded-2xl p-6">
-                <h3 className="font-['Manrope'] font-bold text-sm text-[#F2F2F5] flex items-center gap-2 mb-3">
-                  <FileText size={15} className="text-amber-300" /> {t('quickDrop') || 'Resource Quick-Drop'}
+                <h3 className="font-['Manrope'] font-bold text-sm text-[var(--text)] flex items-center gap-2 mb-3">
+                  <FileText size={15} className="text-[var(--accent-amber)]" /> {t('quickDrop') || 'Resource Quick-Drop'}
                 </h3>
                 {recentFiles.length === 0 ? (
-                  <p className="text-[#52525B] text-xs py-2">{t('noFilesYetShort') || 'No files uploaded yet.'}</p>
+                  <p className="text-[var(--text-faint)] text-xs py-2">{t('noFilesYetShort') || 'No files uploaded yet.'}</p>
                 ) : (
                   <div className="space-y-1.5">
                     {recentFiles.map((f) => (
-                      <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-[#A1A1AA] hover:text-[#F2F2F5] transition truncate">
+                      <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-[var(--text-muted-2)] hover:text-[var(--text)] transition truncate">
                         <FileText size={12} className="shrink-0" /> <span className="truncate">{f.file_name}</span>
                       </a>
                     ))}
                   </div>
                 )}
-                <button onClick={() => setActiveTab('folders')} className="text-xs font-medium text-amber-300 hover:underline flex items-center gap-1 mt-3 cursor-pointer">
-                  {t('browseAll') || 'Browse all'} <ArrowRight size={12} />
-                </button>
+                <div className="flex items-center gap-4 mt-3">
+                  <button onClick={() => setActiveTab('folders')} className="text-xs font-medium text-[var(--accent-amber)] hover:underline flex items-center gap-1 cursor-pointer">
+                    {t('browseAll') || 'Browse Subjects'} <ArrowRight size={12} />
+                  </button>
+                  <button onClick={() => setActiveTab('drive')} className="text-xs font-medium text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer">
+                    Browse Drive <ArrowRight size={12} />
+                  </button>
+                </div>
               </div>
 
             </div>
@@ -820,17 +951,17 @@ export default function StudyDashboard() {
           {/* ============ FOCUS TAB ============ */}
           {activeTab === 'focus' && (
             <div key="focus" className="panel rounded-2xl p-8 flex flex-col items-center justify-center fade-in">
-              <div className="flex space-x-1 mb-8 border border-white/[0.07] p-1 rounded-lg">
-                <button onClick={() => resetTimer('work')} className={`px-4 py-1.5 rounded-md text-sm font-medium transition cursor-pointer ${mode === 'work' ? 'bg-[#F2A93B] text-black' : 'text-[#71717A] hover:text-[#F2F2F5]'}`}>
+              <div className="flex space-x-1 mb-8 border border-[var(--border)] p-1 rounded-lg">
+                <button onClick={() => resetTimer('work')} className={`px-4 py-1.5 rounded-md text-sm font-medium transition cursor-pointer ${mode === 'work' ? 'bg-[#F2A93B] text-black' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}>
                   {t('focusSession') || 'Focus Session'}
                 </button>
-                <button onClick={() => resetTimer('break')} className={`px-4 py-1.5 rounded-md text-sm font-medium transition cursor-pointer ${mode === 'break' ? 'bg-[#2DD4BF] text-black' : 'text-[#71717A] hover:text-[#F2F2F5]'}`}>
+                <button onClick={() => resetTimer('break')} className={`px-4 py-1.5 rounded-md text-sm font-medium transition cursor-pointer ${mode === 'break' ? 'bg-[#2DD4BF] text-black' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}>
                   {t('shortBreak') || 'Short Break'}
                 </button>
               </div>
 
               {/* Customizable duration — disabled while the timer is running */}
-              <div className="flex items-center gap-4 mb-6 text-xs text-[#71717A]">
+              <div className="flex items-center gap-4 mb-6 text-xs text-[var(--text-muted)]">
                 <label className="flex items-center gap-2">
                   {t('focusMinutes') || 'Focus (min)'}
                   <input
@@ -840,7 +971,7 @@ export default function StudyDashboard() {
                     value={focusMinutes}
                     disabled={isRunning}
                     onChange={(e) => handleDurationChange('work', e.target.value)}
-                    className="w-16 bg-transparent border border-white/[0.09] rounded-md px-2 py-1 text-center text-[#F2F2F5] focus:outline-none focus:border-amber-400/50 disabled:opacity-40"
+                    className="w-16 bg-transparent border border-[var(--border)] rounded-md px-2 py-1 text-center text-[var(--text)] focus:outline-none focus:border-amber-400/50 disabled:opacity-40"
                   />
                 </label>
                 <label className="flex items-center gap-2">
@@ -852,20 +983,20 @@ export default function StudyDashboard() {
                     value={breakMinutes}
                     disabled={isRunning}
                     onChange={(e) => handleDurationChange('break', e.target.value)}
-                    className="w-16 bg-transparent border border-white/[0.09] rounded-md px-2 py-1 text-center text-[#F2F2F5] focus:outline-none focus:border-teal-400/50 disabled:opacity-40"
+                    className="w-16 bg-transparent border border-[var(--border)] rounded-md px-2 py-1 text-center text-[var(--text)] focus:outline-none focus:border-teal-400/50 disabled:opacity-40"
                   />
                 </label>
               </div>
 
-              <div className="text-7xl font-['JetBrains_Mono'] font-bold tracking-tight mb-3 text-[#F2F2F5]">{formatTime(timeLeft)}</div>
-              <p className="text-[#71717A] text-sm mb-8">{mode === 'work' ? (t('stayFocused') || 'Stay focused on your task.') : (t('takeABreather') || 'Take a breather and relax.')}</p>
+              <div className="text-7xl font-['JetBrains_Mono'] font-bold tracking-tight mb-3 text-[var(--text)]">{formatTime(timeLeft)}</div>
+              <p className="text-[var(--text-muted)] text-sm mb-8">{mode === 'work' ? (t('stayFocused') || 'Stay focused on your task.') : (t('takeABreather') || 'Take a breather and relax.')}</p>
 
               <div className="flex space-x-3 mb-6">
-                <button onClick={toggleTimer} className={`px-6 py-2.5 rounded-lg font-semibold flex items-center space-x-2 transition cursor-pointer ${isRunning ? 'bg-white/[0.08] hover:bg-white/[0.12] text-[#F2F2F5]' : 'bg-[#F2A93B] hover:brightness-110 text-black'}`}>
+                <button onClick={toggleTimer} className={`px-6 py-2.5 rounded-lg font-semibold flex items-center space-x-2 transition cursor-pointer ${isRunning ? 'bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)]' : 'bg-[#F2A93B] hover:brightness-110 text-black'}`}>
                   {isRunning ? <Pause size={16} /> : <Play size={16} />}
                   <span>{isRunning ? (t('pauseTimer') || 'Pause Timer') : (t('startFocus') || 'Start Focus')}</span>
                 </button>
-                <button onClick={() => resetTimer()} className="p-2.5 border border-white/[0.07] hover:border-white/[0.16] text-[#71717A] rounded-lg transition cursor-pointer">
+                <button onClick={() => resetTimer()} className="p-2.5 border border-[var(--border)] hover:border-[var(--border-strong)] text-[var(--text-muted)] rounded-lg transition cursor-pointer">
                   <RotateCcw size={16} />
                 </button>
               </div>
@@ -874,31 +1005,74 @@ export default function StudyDashboard() {
             </div>
           )}
 
+          {/* ============ SHARED FOCUS ROOM (sits alongside the personal timer, same Focus tab) ============ */}
+          {activeTab === 'focus' && (
+            <div className="panel rounded-2xl p-6 mt-4 fade-in">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-[var(--text)] flex items-center gap-2">
+                  <Radio size={17} className={roomActive ? 'text-rose-400 animate-pulse' : 'text-indigo-400'} />
+                  Focus Room
+                </h3>
+                <span className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] bg-black/20 border border-[var(--border)] rounded-full px-3 py-1">
+                  <Users size={12} /> {roomPresenceCount} studying now
+                </span>
+              </div>
+              <p className="text-xs text-[var(--text-muted)] mb-5">
+                Join a shared, always-on session with other students — no settings to fiddle with, just start and focus together. Your time here counts straight toward Today's Focus.
+              </p>
+
+              <div className="flex flex-col items-center py-4">
+                <div className="relative mb-4">
+                  <div className={`absolute inset-0 blur-3xl rounded-full transition-colors duration-1000 ${roomActive ? 'bg-rose-400/20' : 'bg-indigo-400/10'}`} />
+                  <div className="relative text-5xl font-['JetBrains_Mono'] font-bold tracking-tight text-[var(--text)]">
+                    {formatRoomTime(roomSeconds)}
+                  </div>
+                </div>
+
+                {roomActive ? (
+                  <button
+                    onClick={leaveFocusRoom}
+                    className="px-6 py-2.5 rounded-lg font-semibold flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition cursor-pointer"
+                  >
+                    <LogOut size={16} /> Leave Room
+                  </button>
+                ) : (
+                  <button
+                    onClick={joinFocusRoom}
+                    className="px-6 py-2.5 rounded-lg font-semibold flex items-center gap-2 bg-indigo-500 hover:brightness-110 text-white transition cursor-pointer"
+                  >
+                    <Play size={16} /> Start
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* ============ GOALS TAB ============ */}
           {activeTab === 'goals' && (
             <div key="goals" className="panel rounded-2xl p-6 max-w-xl fade-in">
-              <h3 className="font-['Manrope'] font-bold text-sm text-[#F2F2F5] flex items-center gap-2 mb-4">
+              <h3 className="font-['Manrope'] font-bold text-sm text-[var(--text)] flex items-center gap-2 mb-4">
                 <Sparkles size={15} className="text-teal-300" /> {t('dailyGoals') || 'Daily Goals'}
               </h3>
 
               <form onSubmit={addGoal} className="flex gap-2 mb-4">
-                <input type="text" placeholder={t('addGoalPlaceholder') || 'Add a new goal...'} value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} className="flex-1 bg-transparent border border-white/[0.09] rounded-lg px-3 py-2 text-sm text-[#F2F2F5] focus:outline-none focus:border-teal-400/50" />
-                <button type="submit" className="bg-white/[0.08] hover:bg-white/[0.14] text-[#F2F2F5] p-2 rounded-lg transition cursor-pointer"><Plus size={16} /></button>
+                <input type="text" placeholder={t('addGoalPlaceholder') || 'Add a new goal...'} value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} className="flex-1 bg-transparent border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:border-teal-400/50" />
+                <button type="submit" className="bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] p-2 rounded-lg transition cursor-pointer"><Plus size={16} /></button>
               </form>
 
               <div className="space-y-1.5 max-h-96 overflow-y-auto pr-1">
                 {loadingTasks ? (
-                  <p className="text-[#52525B] text-xs text-center py-4">{t('loadingGoals') || 'Loading goals...'}</p>
+                  <p className="text-[var(--text-faint)] text-xs text-center py-4">{t('loadingGoals') || 'Loading goals...'}</p>
                 ) : tasks.length === 0 ? (
-                  <p className="text-[#52525B] text-xs text-center py-4">{t('noGoals') || 'No goals added yet.'}</p>
+                  <p className="text-[var(--text-faint)] text-xs text-center py-4">{t('noGoals') || 'No goals added yet.'}</p>
                 ) : (
                   tasks.map((task, idx) => (
-                    <div key={task.id ?? idx} className={`p-3 rounded-lg border transition flex items-center justify-between ${task.is_completed ? 'border-transparent text-[#52525B] line-through' : 'border-white/[0.07] text-[#F2F2F5] hover:border-white/[0.14]'}`}>
+                    <div key={task.id ?? idx} className={`p-3 rounded-lg border transition flex items-center justify-between ${task.is_completed ? 'border-transparent text-[var(--text-faint)] line-through' : 'border-[var(--border)] text-[var(--text)] hover:border-[var(--border-strong)]'}`}>
                       <div onClick={() => toggleTask(task.id, task.is_completed)} className="flex items-center space-x-3 cursor-pointer flex-1">
-                        <input type="checkbox" checked={task.is_completed} onChange={() => {}} className="rounded border-white/20 text-teal-400 focus:ring-0 cursor-pointer" />
+                        <input type="checkbox" checked={task.is_completed} onChange={() => {}} className="rounded border-[var(--border-strong)] text-teal-400 focus:ring-0 cursor-pointer" />
                         <span className="text-sm font-medium">{task.title}</span>
                       </div>
-                      <button type="button" onClick={() => deleteTask(task.id)} className="text-[#52525B] hover:text-red-400 transition ml-2 p-1 cursor-pointer">
+                      <button type="button" onClick={() => deleteTask(task.id)} className="text-[var(--text-faint)] hover:text-red-400 transition ml-2 p-1 cursor-pointer">
                         <Trash2 size={15} />
                       </button>
                     </div>
@@ -911,44 +1085,30 @@ export default function StudyDashboard() {
           {/* ============ NOTES TAB ============ */}
           {activeTab === 'notes' && (
             <div key="notes" className="panel rounded-2xl p-6 fade-in">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-['Manrope'] font-bold text-sm text-[#F2F2F5] flex items-center gap-2">
-                  <StickyNote size={15} className="text-yellow-300" /> {t('quickNotes') || 'Quick Notes & Scratchpad'}
-                </h3>
-                <span className="text-[11px] text-[#52525B]">
-                  {scratchpadStatus === 'saving' ? (t('saving') || 'Saving...') : scratchpadStatus === 'saved' ? (t('saved') || 'Saved ✓') : ''}
-                </span>
-              </div>
-              <textarea
-                value={scratchpadContent}
-                onChange={(e) => handleScratchpadChange(e.target.value)}
-                placeholder={t('scratchpadPlaceholder') || 'Jot down quick thoughts, reminders, or things to look up later...'}
-                rows={12}
-                className="w-full bg-transparent border border-white/[0.09] rounded-lg px-4 py-3 text-sm text-[#F2F2F5] focus:outline-none focus:border-yellow-400/50 resize-none"
-              />
+              <NotesApp />
             </div>
           )}
 
           {/* ============ CALENDAR TAB ============ */}
           {activeTab === 'calendar' && (
             <div key="calendar" className="panel rounded-2xl p-6 space-y-6 fade-in">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/[0.07] pb-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--border)] pb-4">
                 <div>
-                  <h3 className="font-['Manrope'] font-bold text-sm text-[#F2F2F5] flex items-center gap-2">
+                  <h3 className="font-['Manrope'] font-bold text-sm text-[var(--text)] flex items-center gap-2">
                     <CalendarIcon size={16} className="text-rose-400" /> {t('calendarEvents') || 'Calendar & Events'}
                   </h3>
-                  <p className="text-[#71717A] text-xs mt-0.5">{t('holidaysHighlight') || 'Official Tunisian holidays highlighted in'} <span className="text-red-400 font-semibold">RED</span> · {t('moodHint') || 'Click the dot on any day to log your mood'}</p>
+                  <p className="text-[var(--text-muted)] text-xs mt-0.5">{t('holidaysHighlight') || 'Official Tunisian holidays highlighted in'} <span className="text-red-400 font-semibold">RED</span> · {t('moodHint') || 'Click the dot on any day to log your mood'}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <button onClick={prevMonth} className="p-1.5 border border-white/[0.07] hover:border-white/[0.16] text-[#F2F2F5] rounded-lg transition cursor-pointer"><ChevronLeft size={16} /></button>
-                  <span className="text-sm font-bold text-[#F2F2F5] min-w-[130px] text-center">{currentDate.toLocaleString(language === 'fr' ? 'fr-FR' : 'default', { month: 'long', year: 'numeric' })}</span>
-                  <button onClick={nextMonth} className="p-1.5 border border-white/[0.07] hover:border-white/[0.16] text-[#F2F2F5] rounded-lg transition cursor-pointer"><ChevronRight size={16} /></button>
+                  <button onClick={prevMonth} className="p-1.5 border border-[var(--border)] hover:border-[var(--border-strong)] text-[var(--text)] rounded-lg transition cursor-pointer"><ChevronLeft size={16} /></button>
+                  <span className="text-sm font-bold text-[var(--text)] min-w-[130px] text-center">{currentDate.toLocaleString(language === 'fr' ? 'fr-FR' : 'default', { month: 'long', year: 'numeric' })}</span>
+                  <button onClick={nextMonth} className="p-1.5 border border-[var(--border)] hover:border-[var(--border-strong)] text-[var(--text)] rounded-lg transition cursor-pointer"><ChevronRight size={16} /></button>
                 </div>
               </div>
 
               <form onSubmit={addEvent} className="flex flex-col md:flex-row gap-3">
-                <input type="text" placeholder={t('eventTitlePlaceholder') || 'Event or Exam Title...'} value={newEventTitle} onChange={(e) => setNewEventTitle(e.target.value)} className="flex-1 bg-transparent border border-white/[0.09] rounded-lg px-3 py-2 text-sm text-[#F2F2F5] focus:outline-none focus:border-rose-400/50" required />
-                <input type="date" value={newEventDate} onChange={(e) => setNewEventDate(e.target.value)} className="bg-transparent border border-white/[0.09] rounded-lg px-3 py-2 text-sm text-[#A1A1AA] focus:outline-none focus:border-rose-400/50" required />
+                <input type="text" placeholder={t('eventTitlePlaceholder') || 'Event or Exam Title...'} value={newEventTitle} onChange={(e) => setNewEventTitle(e.target.value)} className="flex-1 bg-transparent border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:border-rose-400/50" required />
+                <input type="date" value={newEventDate} onChange={(e) => setNewEventDate(e.target.value)} className="bg-transparent border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-muted-2)] focus:outline-none focus:border-rose-400/50" required />
                 <button type="submit" className="bg-rose-500 hover:brightness-110 text-white text-sm font-medium px-4 py-2 rounded-lg transition flex items-center justify-center gap-2 cursor-pointer">
                   <Plus size={16} /> {t('addEvent') || 'Add Event'}
                 </button>
@@ -956,10 +1116,10 @@ export default function StudyDashboard() {
 
               <div className="grid grid-cols-7 gap-1.5 text-center">
                 {[t('sun') || 'Sun', t('mon') || 'Mon', t('tue') || 'Tue', t('wed') || 'Wed', t('thu') || 'Thu', t('fri') || 'Fri', t('sat') || 'Sat'].map((d) => (
-                  <div key={d} className="text-[#52525B] text-[10px] font-bold py-1.5 uppercase tracking-wider">{d}</div>
+                  <div key={d} className="text-[var(--text-faint)] text-[10px] font-bold py-1.5 uppercase tracking-wider">{d}</div>
                 ))}
                 {Array.from({ length: firstDay }).map((_, idx) => (
-                  <div key={`empty-${idx}`} className="h-24 rounded-lg border border-white/[0.03]"></div>
+                  <div key={`empty-${idx}`} className="h-24 rounded-lg border border-[var(--border-faint)]"></div>
                 ))}
                 {Array.from({ length: daysInMonth }).map((_, idx) => {
                   const dayNum = idx + 1;
@@ -972,17 +1132,17 @@ export default function StudyDashboard() {
                   const dayMood = moods[fullDateStr];
 
                   return (
-                    <div key={dayNum} className={`h-24 p-1.5 rounded-lg border text-left flex flex-col justify-between relative transition ${holidayName ? 'bg-red-500/[0.06] border-red-400/20' : 'border-white/[0.07] hover:border-white/[0.14]'}`}>
+                    <div key={dayNum} className={`h-24 p-1.5 rounded-lg border text-left flex flex-col justify-between relative transition ${holidayName ? 'bg-red-500/[0.06] border-red-400/20' : 'border-[var(--border)] hover:border-[var(--border-strong)]'}`}>
                       <div className="flex justify-between items-start">
-                        <span className={`text-[11px] font-bold ${holidayName ? 'text-red-300' : 'text-[#F2F2F5]'}`}>{dayNum}</span>
-                        {holidayName && <span className="text-[9px] bg-red-500/15 text-red-300 px-1 py-0.5 rounded truncate max-w-[70px]">🇹🇳 {holidayName}</span>}
-                        <button onClick={() => setMoodPickerDate(fullDateStr)} className="absolute top-1 right-1 w-4 h-4 flex items-center justify-center rounded-full hover:bg-white/10 transition cursor-pointer text-xs">
+                        <span className={`text-[11px] font-bold ${holidayName ? 'text-[var(--accent-red)]' : 'text-[var(--text)]'}`}>{dayNum}</span>
+                        {holidayName && <span className="text-[9px] bg-red-500/15 text-[var(--accent-red)] px-1 py-0.5 rounded truncate max-w-[70px]">🇹🇳 {holidayName}</span>}
+                        <button onClick={() => setMoodPickerDate(fullDateStr)} className="absolute top-1 right-1 w-4 h-4 flex items-center justify-center rounded-full hover:bg-[var(--surface-3)] transition cursor-pointer text-xs">
                           {dayMood || <span className="w-1 h-1 rounded-full bg-white/20 block" />}
                         </button>
                       </div>
                       <div className="space-y-1 overflow-y-auto max-h-10">
                         {dayEvents.map((ev, evIdx) => (
-                          <div key={ev.id ?? evIdx} className="bg-indigo-500/[0.12] border border-indigo-400/20 text-indigo-200 text-[9px] p-1 rounded flex items-center justify-between group">
+                          <div key={ev.id ?? evIdx} className="bg-indigo-500/[0.12] border border-indigo-400/20 text-[var(--accent-indigo)] text-[9px] p-1 rounded flex items-center justify-between group">
                             <span className="truncate font-medium">{ev.title}</span>
                             <button onClick={() => deleteEvent(ev.id)} className="opacity-0 group-hover:opacity-100 text-red-400 transition cursor-pointer">×</button>
                           </div>
@@ -999,25 +1159,25 @@ export default function StudyDashboard() {
           {activeTab === 'folders' && (
             <div key="folders" className="panel rounded-2xl p-6 fade-in">
               <div className="mb-5">
-                <h3 className="font-['Manrope'] font-bold text-sm text-[#F2F2F5] flex items-center gap-2">
-                  <Folder size={16} className="text-amber-300" /> {t('subjectFoldersDrive') || 'Subjects & Resource Vault'}
+                <h3 className="font-['Manrope'] font-bold text-sm text-[var(--text)] flex items-center gap-2">
+                  <Folder size={16} className="text-[var(--accent-amber)]" /> {t('subjectFoldersDrive') || 'Subjects & Resource Vault'}
                 </h3>
-                <p className="text-[#71717A] text-xs mt-0.5">{t('folderClickPrompt') || 'Click any subject to open it and manage notes, exercises, and PDFs.'}</p>
+                <p className="text-[var(--text-muted)] text-xs mt-0.5">{t('folderClickPrompt') || 'Click any subject to open it and manage notes, exercises, and PDFs.'}</p>
               </div>
 
               <div className="relative mb-3">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#52525B]" />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-faint)]" />
                 <input
                   type="text"
                   placeholder={t('searchFolders') || 'Search subjects...'}
                   value={folderSearch}
                   onChange={(e) => setFolderSearch(e.target.value)}
-                  className="w-full bg-transparent border border-white/[0.09] rounded-lg pl-9 pr-3 py-2 text-sm text-[#F2F2F5] focus:outline-none focus:border-amber-400/50"
+                  className="w-full bg-transparent border border-[var(--border)] rounded-lg pl-9 pr-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:border-amber-400/50"
                 />
               </div>
 
               <form onSubmit={addModule} className="flex gap-3 mb-5">
-                <input type="text" placeholder={t('folderPlaceholder') || 'Subject name (e.g. Mathematics, Architecture)...'} value={newModuleTitle} onChange={(e) => setNewModuleTitle(e.target.value)} className="flex-1 bg-transparent border border-white/[0.09] rounded-lg px-3 py-2 text-sm text-[#F2F2F5] focus:outline-none focus:border-amber-400/50" required />
+                <input type="text" placeholder={t('folderPlaceholder') || 'Subject name (e.g. Mathematics, Architecture)...'} value={newModuleTitle} onChange={(e) => setNewModuleTitle(e.target.value)} className="flex-1 bg-transparent border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:border-amber-400/50" required />
                 <button type="submit" className="bg-[#F2A93B] hover:brightness-110 text-black text-sm font-medium px-4 py-2 rounded-lg flex items-center gap-2 cursor-pointer transition">
                   <Plus size={16} /> {t('addFolder') || 'Add'}
                 </button>
@@ -1025,28 +1185,28 @@ export default function StudyDashboard() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {loadingModules ? (
-                  <p className="text-[#52525B] text-xs col-span-full text-center py-4">{t('loadingFolders') || 'Loading subjects...'}</p>
+                  <p className="text-[var(--text-faint)] text-xs col-span-full text-center py-4">{t('loadingFolders') || 'Loading subjects...'}</p>
                 ) : filteredModules.length === 0 ? (
-                  <p className="text-[#52525B] text-xs col-span-full text-center py-4">
+                  <p className="text-[var(--text-faint)] text-xs col-span-full text-center py-4">
                     {modules.length === 0 ? (t('noFolders') || 'No subjects created yet.') : (t('noFoldersMatch') || 'No subjects match your search.')}
                   </p>
                 ) : (
                   filteredModules.map((mod) => (
-                    <div key={mod.id} className="panel-hover border border-white/[0.07] rounded-xl p-4 flex flex-col justify-between group">
+                    <div key={mod.id} className="panel-hover border border-[var(--border)] rounded-xl p-4 flex flex-col justify-between group">
                       <div className="flex items-center justify-between mb-2">
                         <div onClick={() => openFolder(mod)} className="flex items-center space-x-2 cursor-pointer flex-1 truncate">
-                          <Folder size={17} className="text-amber-300 shrink-0" />
-                          <span className="font-semibold text-[#F2F2F5] text-sm truncate group-hover:text-amber-300 transition">{mod.title}</span>
+                          <Folder size={17} className="text-[var(--accent-amber)] shrink-0" />
+                          <span className="font-semibold text-[var(--text)] text-sm truncate group-hover:text-[var(--accent-amber)] transition">{mod.title}</span>
                         </div>
-                        <button onClick={() => deleteModule(mod.id)} className="text-[#52525B] hover:text-red-400 transition p-1 cursor-pointer">
+                        <button onClick={() => deleteModule(mod.id)} className="text-[var(--text-faint)] hover:text-red-400 transition p-1 cursor-pointer">
                           <Trash2 size={14} />
                         </button>
                       </div>
-                      <div className="flex items-center justify-between pt-2.5 border-t border-white/[0.05] mt-2">
-                        <button onClick={() => toggleModuleStatus(mod.id, mod.status)} className={`text-[10px] px-2 py-0.5 rounded-full font-medium transition cursor-pointer ${mod.status === 'Mastered' ? 'text-emerald-300 bg-emerald-400/10' : 'text-blue-300 bg-blue-400/10'}`}>
+                      <div className="flex items-center justify-between pt-2.5 border-t border-[var(--border-faint)] mt-2">
+                        <button onClick={() => toggleModuleStatus(mod.id, mod.status)} className={`text-[10px] px-2 py-0.5 rounded-full font-medium transition cursor-pointer ${mod.status === 'Mastered' ? 'text-[var(--accent-emerald)] bg-emerald-400/10' : 'text-[var(--accent-blue)] bg-blue-400/10'}`}>
                           {mod.status === 'Mastered' ? (t('mastered') || 'Mastered') : (t('inProgress') || 'In Progress')}
                         </button>
-                        <button onClick={() => openFolder(mod)} className="text-[11px] text-amber-300 hover:underline flex items-center gap-1 cursor-pointer">
+                        <button onClick={() => openFolder(mod)} className="text-[11px] text-[var(--accent-amber)] hover:underline flex items-center gap-1 cursor-pointer">
                           {t('openFolder') || 'Open'} →
                         </button>
                       </div>
@@ -1054,6 +1214,20 @@ export default function StudyDashboard() {
                   ))
                 )}
               </div>
+            </div>
+          )}
+
+          {/* ============ DRIVE TAB ============ */}
+          {activeTab === 'drive' && (
+            <div key="drive" className="panel rounded-2xl p-6 fade-in">
+              <ResourceDrive />
+            </div>
+          )}
+
+          {/* ============ STUDY BUDDIES TAB ============ */}
+          {activeTab === 'buddies' && (
+            <div key="buddies" className="panel rounded-2xl p-6 fade-in">
+              <StudyBuddies />
             </div>
           )}
 
@@ -1067,39 +1241,52 @@ export default function StudyDashboard() {
           {/* ============ ASSISTANT TAB ============ */}
           {activeTab === 'assistant' && (
             <div key="assistant" className="panel rounded-2xl p-6 fade-in">
-              <p className="text-sm text-[#A1A1AA]">
-                {t('assistantHint') || 'Your study assistant floats in the corner of every page — click the chat bubble to open it anytime.'}
-              </p>
+              <AssistantFullScreen />
+            </div>
+          )}
+
+          {/* ============ REVIEWS TAB ============ */}
+                   {/* ============ REVIEWS TAB ============ */}
+          {activeTab === 'reviews' && (
+            <div key="reviews" className="panel rounded-2xl p-6 fade-in">
+              <FeedbackTab />
+            </div>
+          )}
+
+          {/* ============ ACCOUNT TAB ============ */}
+          {activeTab === 'account' && (
+            <div key="account" className="panel rounded-2xl p-6 fade-in">
+              <AccountCenter session={session} />
             </div>
           )}
 
         </div>
       </div>
 
-      {/* --- AI Assistant: floats globally, not tied to any single tab --- */}
-      <StudyAiWidget />
+      {/* --- AI Assistant bubble: floats on every tab EXCEPT Assistant, where the full-screen chat is already shown --- */}
+      {activeTab !== 'assistant' && <StudyAiWidget />}
 
       {/* --- Folder Drive Modal --- */}
       {activeFolder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="panel rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between p-5 border-b border-white/[0.07]">
+            <div className="flex items-center justify-between p-5 border-b border-[var(--border)]">
               <div className="flex items-center space-x-2.5 truncate">
-                <Folder size={19} className="text-amber-300 shrink-0" />
+                <Folder size={19} className="text-[var(--accent-amber)] shrink-0" />
                 <div>
-                  <h3 className="font-bold text-[#F2F2F5] truncate text-sm">{activeFolder.title}</h3>
-                  <p className="text-xs text-[#71717A]">{t('folderDriveFiles') || 'Manage files, PDFs, and resources for this subject'}</p>
+                  <h3 className="font-bold text-[var(--text)] truncate text-sm">{activeFolder.title}</h3>
+                  <p className="text-xs text-[var(--text-muted)]">{t('folderDriveFiles') || 'Manage files, PDFs, and resources for this subject'}</p>
                 </div>
               </div>
-              <button onClick={() => setActiveFolder(null)} className="p-1.5 text-[#71717A] hover:text-[#F2F2F5] hover:bg-white/[0.06] rounded-lg transition cursor-pointer">
+              <button onClick={() => setActiveFolder(null)} className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-2)] rounded-lg transition cursor-pointer">
                 <X size={18} />
               </button>
             </div>
 
             <div className="p-6 overflow-y-auto space-y-4 flex-1">
-              <div className="flex items-center justify-between border border-white/[0.07] p-3.5 rounded-lg">
-                <div className="flex items-center space-x-2 text-xs text-[#F2F2F5]">
-                  <FileText size={14} className="text-amber-300" />
+              <div className="flex items-center justify-between border border-[var(--border)] p-3.5 rounded-lg">
+                <div className="flex items-center space-x-2 text-xs text-[var(--text)]">
+                  <FileText size={14} className="text-[var(--accent-amber)]" />
                   <span>{folderFiles.length} {t('filesUploaded') || 'files uploaded in this folder'}</span>
                 </div>
                 <label className={`px-3.5 py-1.5 bg-[#F2A93B] hover:brightness-110 text-black rounded-lg text-xs font-semibold flex items-center gap-2 cursor-pointer transition ${uploadingFile ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -1111,21 +1298,21 @@ export default function StudyDashboard() {
 
               <div className="space-y-1.5">
                 {folderFiles.length === 0 ? (
-                  <div className="text-center py-8 text-[#52525B] text-xs">
+                  <div className="text-center py-8 text-[var(--text-faint)] text-xs">
                     {t('noFilesYet') || 'No files uploaded to this folder yet.'}
                   </div>
                 ) : (
                   folderFiles.map((file) => (
-                    <div key={file.id} className="flex items-center justify-between border border-white/[0.07] hover:border-white/[0.14] p-2.5 rounded-lg transition">
+                    <div key={file.id} className="flex items-center justify-between border border-[var(--border)] hover:border-[var(--border-strong)] p-2.5 rounded-lg transition">
                       <div className="flex items-center space-x-2.5 truncate">
-                        <FileText size={16} className="text-amber-300 shrink-0" />
+                        <FileText size={16} className="text-[var(--accent-amber)] shrink-0" />
                         <div className="truncate">
-                          <p className="text-sm font-medium text-[#F2F2F5] truncate">{file.file_name}</p>
-                          <span className="text-[10px] text-[#52525B]">{file.file_size}</span>
+                          <p className="text-sm font-medium text-[var(--text)] truncate">{file.file_name}</p>
+                          <span className="text-[10px] text-[var(--text-faint)]">{file.file_size}</span>
                         </div>
                       </div>
                       <div className="flex items-center space-x-1.5 shrink-0">
-                        <a href={file.file_url} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-white/[0.06] text-[#F2F2F5] rounded-md transition cursor-pointer">
+                        <a href={file.file_url} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-[var(--surface-2)] text-[var(--text)] rounded-md transition cursor-pointer">
                           <Download size={13} />
                         </a>
                         <button onClick={() => deleteFile(file.id, file.file_url)} className="p-1.5 hover:bg-red-500/10 text-red-400 rounded-md transition cursor-pointer">
@@ -1145,17 +1332,17 @@ export default function StudyDashboard() {
       {moodPickerDate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setMoodPickerDate(null)}>
           <div className="panel rounded-2xl p-6 max-w-xs w-full" onClick={(e) => e.stopPropagation()}>
-            <h4 className="text-sm font-semibold text-[#F2F2F5] mb-1">{t('howFeeling') || 'How are you feeling?'}</h4>
-            <p className="text-xs text-[#71717A] mb-4">{moodPickerDate}</p>
+            <h4 className="text-sm font-semibold text-[var(--text)] mb-1">{t('howFeeling') || 'How are you feeling?'}</h4>
+            <p className="text-xs text-[var(--text-muted)] mb-4">{moodPickerDate}</p>
             <div className="grid grid-cols-3 gap-2.5">
               {MOOD_OPTIONS.map((m) => (
-                <button key={m.emoji} onClick={() => setMoodForDate(moodPickerDate, m.emoji)} className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-white/[0.07] hover:border-teal-400/40 transition cursor-pointer">
+                <button key={m.emoji} onClick={() => setMoodForDate(moodPickerDate, m.emoji)} className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-[var(--border)] hover:border-teal-400/40 transition cursor-pointer">
                   <span className="text-xl">{m.emoji}</span>
-                  <span className="text-[9px] text-[#71717A] text-center">{m.label}</span>
+                  <span className="text-[9px] text-[var(--text-muted)] text-center">{m.label}</span>
                 </button>
               ))}
             </div>
-            <button onClick={() => setMoodPickerDate(null)} className="w-full mt-4 text-xs text-[#71717A] hover:text-[#F2F2F5] transition cursor-pointer">
+            <button onClick={() => setMoodPickerDate(null)} className="w-full mt-4 text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition cursor-pointer">
               {t('cancel') || 'Cancel'}
             </button>
           </div>
@@ -1166,21 +1353,21 @@ export default function StudyDashboard() {
       {commandOpen && (
         <div className="fixed inset-0 z-[60] flex items-start justify-center pt-[15vh] bg-black/60 backdrop-blur-sm p-4" onClick={() => setCommandOpen(false)}>
           <div className="panel rounded-2xl w-full max-w-lg overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/[0.07]">
-              <Command size={15} className="text-[#71717A]" />
+            <div className="flex items-center gap-2.5 px-4 py-3 border-b border-[var(--border)]">
+              <Command size={15} className="text-[var(--text-muted)]" />
               <input
                 ref={commandInputRef}
                 type="text"
                 value={commandQuery}
                 onChange={(e) => setCommandQuery(e.target.value)}
                 placeholder={t('commandPlaceholder') || 'Jump to...'}
-                className="flex-1 bg-transparent text-sm text-[#F2F2F5] focus:outline-none placeholder:text-[#52525B]"
+                className="flex-1 bg-transparent text-sm text-[var(--text)] focus:outline-none placeholder:text-[var(--text-faint)]"
               />
-              <kbd className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.06] text-[#71717A] font-['JetBrains_Mono']">ESC</kbd>
+              <kbd className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--surface-2)] text-[var(--text-muted)] font-['JetBrains_Mono']">ESC</kbd>
             </div>
             <div className="max-h-72 overflow-y-auto p-1.5">
               {commandResults.length === 0 ? (
-                <p className="text-[#52525B] text-xs text-center py-6">{t('noResults') || 'No matches.'}</p>
+                <p className="text-[var(--text-faint)] text-xs text-center py-6">{t('noResults') || 'No matches.'}</p>
               ) : (
                 commandResults.map((tabItem) => {
                   const Icon = tabItem.icon;
@@ -1188,7 +1375,7 @@ export default function StudyDashboard() {
                     <button
                       key={tabItem.key}
                       onClick={() => { setActiveTab(tabItem.key); setCommandOpen(false); }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-[#D4D4D8] hover:bg-white/[0.06] hover:text-[#F2F2F5] transition cursor-pointer"
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-2)] hover:text-[var(--text)] transition cursor-pointer"
                     >
                       <Icon size={15} /> {tabItem.label}
                     </button>
@@ -1201,5 +1388,16 @@ export default function StudyDashboard() {
       )}
 
     </div>
+  );
+}
+
+// The default export is gated: PlanGate checks the user's plan/trial status
+// and only renders the actual dashboard (StudyDashboardInner) once access
+// is confirmed. It also shows the plan picker and the trial countdown banner.
+export default function StudyDashboard() {
+  return (
+    <PlanGate>
+      <StudyDashboardInner />
+    </PlanGate>
   );
 }
