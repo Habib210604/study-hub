@@ -21,7 +21,7 @@ const EDUCATION_LEVELS_FOR_TARGETING = [
 ];
 
 // Grades that have filières — used to render filière sub-chips under the grade chip
-const FILIERE_TARGETING_MAP = {
+const FILIERE_TARGETING_MAP: Record<string, string[]> = {
   '2ème': ['Mathématiques', 'Sciences', 'Lettres', 'Sport'],
   '3ème': ['Mathématiques', 'Sciences Expérimentales', 'Économie et Gestion', 'Informatique', 'Sport', 'Technique', 'Lettres'],
   'Bac': ['Mathématiques', 'Sciences Expérimentales', 'Économie et Gestion', 'Informatique', 'Sport', 'Technique', 'Lettres'],
@@ -30,55 +30,55 @@ const FILIERE_TARGETING_MAP = {
 export default function AdminDashboard() {
   const router = useRouter();
   const [checkingAuth, setCheckingAuth] = useState(true);
-  const [session, setSession] = useState(null);
+  const [session, setSession] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('announcements'); // 'announcements' | 'users'
 
   // Announcements state
-  const [announcements, setAnnouncements] = useState([]);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
   const [newTitle, setNewTitle] = useState('');
   const [newMessage, setNewMessage] = useState('');
   const [audienceMode, setAudienceMode] = useState('all'); // 'all' | 'specific' | 'class'
-  const [selectedRecipientIds, setSelectedRecipientIds] = useState([]);
+  const [selectedRecipientIds, setSelectedRecipientIds] = useState<string[]>([]);
   const [recipientSearch, setRecipientSearch] = useState(''); // search by name or email in 'specific' mode
-  const [selectedClasses, setSelectedClasses] = useState([]); // education_level values for 'class' mode
+  const [selectedClasses, setSelectedClasses] = useState<string[]>([]); // education_level values for 'class' mode
   const [postingAnnouncement, setPostingAnnouncement] = useState(false);
 
   // Users state (students only)
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
 
   // Grant Access state: which user's plan-picker is open, and loading flag
-  const [grantingUserId, setGrantingUserId] = useState(null);
-  const [grantLoadingId, setGrantLoadingId] = useState(null);
+  const [grantingUserId, setGrantingUserId] = useState<string | null>(null);
+  const [grantLoadingId, setGrantLoadingId] = useState<string | null>(null);
 
   // Selected user detail state
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [userEvents, setUserEvents] = useState([]);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [userEvents, setUserEvents] = useState<any[]>([]);
 
   // Resources state
-  const [resources, setResources] = useState([]);
+  const [resources, setResources] = useState<any[]>([]);
   const [loadingResources, setLoadingResources] = useState(true);
-  const [pendingPurchases, setPendingPurchases] = useState([]);
+  const [pendingPurchases, setPendingPurchases] = useState<any[]>([]);
   const [resourceForm, setResourceForm] = useState({
     title: '', description: '', resource_type: 'exercise_set',
     education_level: '', filiere: '', is_free: false, price: '',
   });
-  const [exerciseFile, setExerciseFile] = useState(null);
-  const [correctionFile, setCorrectionFile] = useState(null);
-  const [summaryFile, setSummaryFile] = useState(null);
+  const [exerciseFile, setExerciseFile] = useState<File | null>(null);
+  const [correctionFile, setCorrectionFile] = useState<File | null>(null);
+  const [summaryFile, setSummaryFile] = useState<File | null>(null);
   const [uploadingResource, setUploadingResource] = useState(false);
-  const [approvingId, setApprovingId] = useState(null);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
 
   // Reviews state
-  const [reviews, setReviews] = useState([]);
+  const [reviews, setReviews] = useState<any[]>([]);
   const [loadingReviews, setLoadingReviews] = useState(true);
 
   // Reports state
-  const [reports, setReports] = useState([]);
+  const [reports, setReports] = useState<any[]>([]);
   const [loadingReports, setLoadingReports] = useState(true);
-  const [banningId, setBanningId] = useState(null);
-  const [userGoals, setUserGoals] = useState([]);
-  const [userModules, setUserModules] = useState([]);
+  const [banningId, setBanningId] = useState<string | null>(null);
+  const [userGoals, setUserGoals] = useState<any[]>([]);
+  const [userModules, setUserModules] = useState<any[]>([]);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   // --- Auth guard: only real admins get in ---
@@ -119,27 +119,28 @@ export default function AdminDashboard() {
       fetchReports();
     }
   }, [session]);
+
   // Realtime: reflect student profile edits (name, phone, class) instantly, no manual refresh needed
-useEffect(() => {
-  if (!session) return;
+  useEffect(() => {
+    if (!session) return;
 
-  const channel = supabase
-    .channel('admin-profiles-sync')
-    .on(
-      'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'profiles' },
-      (payload) => {
-        setUsers((prev) =>
-          prev.map((u) => (u.id === payload.new.id ? { ...u, ...payload.new } : u))
-        );
-      }
-    )
-    .subscribe();
+    const channel = supabase
+      .channel('admin-profiles-sync')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles' },
+        (payload: any) => {
+          setUsers((prev) =>
+            prev.map((u) => (u.id === payload.new.id ? { ...u, ...payload.new } : u))
+          );
+        }
+      )
+      .subscribe();
 
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}, [session]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [session]);
 
   // --- Announcements ---
   const fetchAnnouncements = async () => {
@@ -150,7 +151,7 @@ useEffect(() => {
     if (!error && data) setAnnouncements(data);
   };
 
-  const toggleRecipient = (userId) => {
+  const toggleRecipient = (userId: string) => {
     setSelectedRecipientIds((prev) =>
       prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
     );
@@ -166,14 +167,14 @@ useEffect(() => {
     }
   };
 
-  const toggleClass = (level) => {
+  const toggleClass = (level: string) => {
     setSelectedClasses((prev) =>
       prev.includes(level) ? prev.filter((l) => l !== level) : [...prev, level]
     );
   };
 
   // Toggles a specific grade+filière combo, e.g. "Bac::Mathématiques"
-  const toggleClassFiliere = (level, filiere) => {
+  const toggleClassFiliere = (level: string, filiere: string) => {
     const key = `${level}::${filiere}`;
     setSelectedClasses((prev) =>
       prev.includes(key) ? prev.filter((l) => l !== key) : [...prev, key]
@@ -181,18 +182,18 @@ useEffect(() => {
   };
 
   // A user matches if their whole grade was selected, OR their exact grade+filière combo was selected
-  const matchesSelectedClasses = (user) => {
+  const matchesSelectedClasses = (user: any) => {
     if (selectedClasses.includes(user.education_level)) return true;
     if (user.filiere && selectedClasses.includes(`${user.education_level}::${user.filiere}`)) return true;
     return false;
   };
 
-  const postAnnouncement = async (e) => {
+  const postAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !newMessage.trim()) return;
 
     // Resolve the final list of recipient user IDs based on the chosen audience mode
-    let recipientIds = [];
+    let recipientIds: string[] = [];
     if (audienceMode === 'specific') {
       if (selectedRecipientIds.length === 0) {
         alert('Select at least one recipient, or switch to "All Users".');
@@ -258,7 +259,7 @@ useEffect(() => {
     setPostingAnnouncement(false);
   };
 
-  const deleteAnnouncement = async (id) => {
+  const deleteAnnouncement = async (id: string) => {
     setAnnouncements(announcements.filter((a) => a.id !== id));
     await supabase.from('announcements').delete().eq('id', id);
   };
@@ -315,9 +316,9 @@ useEffect(() => {
     setPendingPurchases(merged);
   };
 
-  const uploadResourceFile = async (file, folder) => {
+  const uploadResourceFile = async (file: File, folder: string) => {
     const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '';
 
     const formData = new FormData();
     formData.append('file', file);
@@ -334,7 +335,7 @@ useEffect(() => {
     return data.secure_url;
   };
 
-  const handleUploadResource = async (e) => {
+  const handleUploadResource = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!resourceForm.title.trim() || !resourceForm.education_level) {
       alert('Please fill in at least the title and class.');
@@ -358,10 +359,10 @@ useEffect(() => {
       let exercise_file_url = null, correction_file_url = null, summary_file_url = null;
 
       if (resourceForm.resource_type === 'exercise_set') {
-        exercise_file_url = await uploadResourceFile(exerciseFile, 'exercises');
-        correction_file_url = await uploadResourceFile(correctionFile, 'corrections');
+        exercise_file_url = await uploadResourceFile(exerciseFile as File, 'exercises');
+        correction_file_url = await uploadResourceFile(correctionFile as File, 'corrections');
       } else {
-        summary_file_url = await uploadResourceFile(summaryFile, 'summaries');
+        summary_file_url = await uploadResourceFile(summaryFile as File, 'summaries');
       }
 
       const { error } = await supabase.from('resources').insert([{
@@ -384,18 +385,18 @@ useEffect(() => {
       setCorrectionFile(null);
       setSummaryFile(null);
       fetchResources();
-    } catch (err) {
+    } catch (err: any) {
       alert('Upload failed: ' + err.message);
     }
     setUploadingResource(false);
   };
 
-  const deleteResource = async (id) => {
+  const deleteResource = async (id: string) => {
     setResources((prev) => prev.filter((r) => r.id !== id));
     await supabase.from('resources').delete().eq('id', id);
   };
 
-  const approvePurchase = async (purchaseId) => {
+  const approvePurchase = async (purchaseId: string) => {
     setApprovingId(purchaseId);
     const { error } = await supabase
       .from('resource_purchases')
@@ -438,7 +439,7 @@ useEffect(() => {
     setLoadingReviews(false);
   };
 
-  const deleteReview = async (id) => {
+  const deleteReview = async (id: string) => {
     setReviews((prev) => prev.filter((r) => r.id !== id));
     await supabase.from('reviews').delete().eq('id', id);
   };
@@ -475,12 +476,12 @@ useEffect(() => {
 
   const pendingReportsCount = reports.filter((r) => r.status === 'pending').length;
 
-  const dismissReport = async (reportId) => {
+  const dismissReport = async (reportId: string) => {
     await supabase.from('reports').update({ status: 'reviewed' }).eq('id', reportId);
     setReports((prev) => prev.map((r) => (r.id === reportId ? { ...r, status: 'reviewed' } : r)));
   };
 
-  const banUser = async (userId, reportId) => {
+  const banUser = async (userId: string, reportId: string | null) => {
     setBanningId(userId);
     const reason = prompt('Reason for ban (shown to the user):', 'Violation of community guidelines');
     if (reason === null) { setBanningId(null); return; }
@@ -495,7 +496,7 @@ useEffect(() => {
     setBanningId(null);
   };
 
-  const unbanUser = async (userId) => {
+  const unbanUser = async (userId: string) => {
     setBanningId(userId);
     const { data, error } = await supabase.rpc('admin_set_ban', { p_user_id: userId, p_banned: false });
     if (!error && data?.success) {
@@ -507,7 +508,7 @@ useEffect(() => {
   };
 
   // --- Grant Access: sets subscription_status, subscription_ends_at, and plan on profiles ---
-  const grantAccess = async (userId, months, planLabel) => {
+  const grantAccess = async (userId: string, months: number, planLabel: string) => {
     setGrantLoadingId(userId);
 
     // Extend from the later of (now) or (their current end date), so early renewals stack correctly
@@ -545,7 +546,7 @@ useEffect(() => {
     setGrantLoadingId(null);
   };
 
-  const openUserDetail = async (user) => {
+  const openUserDetail = async (user: any) => {
     setSelectedUser(user);
     setLoadingDetail(true);
 
@@ -1086,19 +1087,19 @@ useEffect(() => {
                   <label className="flex flex-col items-center justify-center gap-1.5 border border-dashed border-slate-700 rounded-xl p-4 cursor-pointer hover:border-blue-500 transition">
                     <Upload size={16} className="text-slate-500" />
                     <span className="text-xs text-slate-400 text-center">{exerciseFile ? exerciseFile.name : 'Exercise PDF'}</span>
-                    <input type="file" accept=".pdf" onChange={(e) => setExerciseFile(e.target.files[0])} className="hidden" />
+                    <input type="file" accept=".pdf" onChange={(e) => setExerciseFile(e.target.files?.[0] || null)} className="hidden" />
                   </label>
                   <label className="flex flex-col items-center justify-center gap-1.5 border border-dashed border-slate-700 rounded-xl p-4 cursor-pointer hover:border-blue-500 transition">
                     <Upload size={16} className="text-slate-500" />
                     <span className="text-xs text-slate-400 text-center">{correctionFile ? correctionFile.name : 'Correction PDF'}</span>
-                    <input type="file" accept=".pdf" onChange={(e) => setCorrectionFile(e.target.files[0])} className="hidden" />
+                    <input type="file" accept=".pdf" onChange={(e) => setCorrectionFile(e.target.files?.[0] || null)} className="hidden" />
                   </label>
                 </div>
               ) : (
                 <label className="flex flex-col items-center justify-center gap-1.5 border border-dashed border-slate-700 rounded-xl p-4 cursor-pointer hover:border-blue-500 transition">
                   <Upload size={16} className="text-slate-500" />
                   <span className="text-xs text-slate-400 text-center">{summaryFile ? summaryFile.name : 'Summary PDF'}</span>
-                  <input type="file" accept=".pdf" onChange={(e) => setSummaryFile(e.target.files[0])} className="hidden" />
+                  <input type="file" accept=".pdf" onChange={(e) => setSummaryFile(e.target.files?.[0] || null)} className="hidden" />
                 </label>
               )}
 
@@ -1202,7 +1203,7 @@ useEffect(() => {
               <p className="text-slate-500 text-sm text-center py-8">No reports have been filed.</p>
             ) : (
               reports.map((r) => {
-                const nameOf = (u) => (u ? (u.first_name || u.last_name ? `${u.first_name || ''} ${u.last_name || ''}`.trim() : u.email) : 'Unknown');
+                const nameOf = (u: any) => (u ? (u.first_name || u.last_name ? `${u.first_name || ''} ${u.last_name || ''}`.trim() : u.email) : 'Unknown');
                 const isBanned = r.reportedInfo?.banned;
                 return (
                   <div key={r.id} className={`bg-slate-900 border rounded-xl p-4 ${r.status === 'pending' ? 'border-amber-500/30' : 'border-slate-800'}`}>

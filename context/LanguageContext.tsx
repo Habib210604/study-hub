@@ -3,7 +3,6 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const translations: Record<string, Record<string, string>> = {
   en: {
-    // Header / greeting
     overview: 'Overview',
     welcomeBack: 'Welcome back to your study hub',
     goodMorning: 'Good morning',
@@ -17,12 +16,8 @@ const translations: Record<string, Record<string, string>> = {
     noResults: 'No matches.',
     cancel: 'Cancel',
     checkingSession: 'Checking session...',
-
-    // Announcement / quote
     announcement: 'Announcement',
     examToday: 'Exam today!',
-
-    // Overview bento widgets
     focusFlow: 'Focus & Flow',
     quickStats: 'Quick Stats',
     activeSubject: 'Active Subject',
@@ -35,8 +30,6 @@ const translations: Record<string, Record<string, string>> = {
     noFilesYetShort: 'No files uploaded yet.',
     browseAll: 'Browse Subjects',
     openTimer: 'Open full timer',
-
-    // Focus / Pomodoro
     pomodoroTimer: 'Focus Timer',
     focusSession: 'Focus Session',
     shortBreak: 'Short Break',
@@ -47,15 +40,11 @@ const translations: Record<string, Record<string, string>> = {
     focusMinutes: 'Focus (min)',
     breakMinutes: 'Break (min)',
     todayFocus: "Today's Focus",
-
-    // Goals
     dailyGoals: 'Daily Goals',
     addGoalPlaceholder: 'Add a new goal...',
     loadingGoals: 'Loading goals...',
     noGoals: 'No goals added yet.',
     tasksDone: 'Tasks Done',
-
-    // Calendar
     calendarEvents: 'Calendar & Events',
     holidaysHighlight: 'Official Tunisian holidays highlighted in',
     moodHint: 'Click the dot on any day to log your mood',
@@ -64,14 +53,10 @@ const translations: Record<string, Record<string, string>> = {
     howFeeling: 'How are you feeling?',
     setMood: 'Set mood',
     sun: 'Sun', mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat',
-
-    // Notes
-    quickNotes: 'Quick Notes & Scratchpad',
+    quickNotes: 'Quick Notes',
     scratchpadPlaceholder: 'Jot down quick thoughts, reminders, or things to look up later...',
     saving: 'Saving...',
     saved: 'Saved ✓',
-
-    // Subjects / Drive
     subjectFolders: 'Subjects',
     subjectFoldersDrive: 'Subjects & Resource Vault',
     folderClickPrompt: 'Click any subject to open it and manage notes, exercises, and PDFs.',
@@ -90,18 +75,17 @@ const translations: Record<string, Record<string, string>> = {
     uploadFile: 'Upload File',
     uploading: 'Uploading...',
     noFilesYet: 'No files uploaded to this folder yet.',
-
-    // Flashcards
     aiFlashcards: 'Flashcards',
-
-    // Assistant
     assistantHint: 'Your study assistant floats in the corner of every page — click the chat bubble to open it anytime.',
-
-    // Misc / dashboard title
     dashboardWorkspace: 'Dashboard Workspace',
+    // New tab labels
+    driveTab: 'Exercises & Course Summaries',
+    assistantTab: 'AI Assistant',
+    buddiesTab: 'Study Buddies',
+    reviewsTab: 'Reviews',
+    accountTab: 'Account',
   },
   fr: {
-    // Header / greeting
     overview: 'Aperçu',
     welcomeBack: 'Bon retour sur votre espace d\u2019étude',
     goodMorning: 'Bonjour',
@@ -115,12 +99,8 @@ const translations: Record<string, Record<string, string>> = {
     noResults: 'Aucun résultat.',
     cancel: 'Annuler',
     checkingSession: 'Vérification de la session...',
-
-    // Announcement / quote
     announcement: 'Annonce',
     examToday: 'Examen aujourd\u2019hui !',
-
-    // Overview bento widgets
     focusFlow: 'Concentration',
     quickStats: 'Statistiques Rapides',
     activeSubject: 'Matière Active',
@@ -133,8 +113,6 @@ const translations: Record<string, Record<string, string>> = {
     noFilesYetShort: 'Aucun fichier importé pour le moment.',
     browseAll: 'Voir les Matières',
     openTimer: 'Ouvrir le minuteur',
-
-    // Focus / Pomodoro
     pomodoroTimer: 'Minuteur',
     focusSession: 'Session de Concentration',
     shortBreak: 'Courte Pause',
@@ -145,15 +123,11 @@ const translations: Record<string, Record<string, string>> = {
     focusMinutes: 'Concentration (min)',
     breakMinutes: 'Pause (min)',
     todayFocus: 'Focus du Jour',
-
-    // Goals
     dailyGoals: 'Objectifs Quotidiens',
     addGoalPlaceholder: 'Ajouter un nouvel objectif...',
     loadingGoals: 'Chargement des objectifs...',
     noGoals: 'Aucun objectif ajouté pour le moment.',
     tasksDone: 'Tâches Terminées',
-
-    // Calendar
     calendarEvents: 'Calendrier & Événements',
     holidaysHighlight: 'Jours fériés tunisiens officiels surlignés en',
     moodHint: 'Cliquez sur le point d\u2019un jour pour noter votre humeur',
@@ -162,14 +136,10 @@ const translations: Record<string, Record<string, string>> = {
     howFeeling: 'Comment vous sentez-vous ?',
     setMood: 'Définir l\u2019humeur',
     sun: 'Dim', mon: 'Lun', tue: 'Mar', wed: 'Mer', thu: 'Jeu', fri: 'Ven', sat: 'Sam',
-
-    // Notes
     quickNotes: 'Notes Rapides',
     scratchpadPlaceholder: 'Notez rapidement vos pensées, rappels, ou choses à vérifier plus tard...',
     saving: 'Enregistrement...',
     saved: 'Enregistré ✓',
-
-    // Subjects / Drive
     subjectFolders: 'Matières',
     subjectFoldersDrive: 'Matières & Espace de Ressources',
     folderClickPrompt: 'Cliquez sur une matière pour l\u2019ouvrir et gérer notes, exercices et PDFs.',
@@ -188,16 +158,169 @@ const translations: Record<string, Record<string, string>> = {
     uploadFile: 'Importer un Fichier',
     uploading: 'Importation...',
     noFilesYet: 'Aucun fichier importé dans ce dossier pour le moment.',
-
-    // Flashcards
     aiFlashcards: 'Flashcards',
-
-    // Assistant
     assistantHint: 'Votre assistant d\u2019étude flotte dans le coin de chaque page — cliquez sur la bulle de discussion pour l\u2019ouvrir à tout moment.',
-
-    // Misc / dashboard title
     dashboardWorkspace: 'Espace Tableau de Bord',
+    driveTab: 'Exercices & Résumés de Cours',
+    assistantTab: 'Assistant IA',
+    buddiesTab: 'Camarades d\u2019Étude',
+    reviewsTab: 'Avis',
+    accountTab: 'Compte',
   },
+  ar: {
+    overview: 'نظرة عامة',
+    welcomeBack: 'مرحباً بعودتك إلى مساحة دراستك',
+    goodMorning: 'صباح الخير',
+    goodAfternoon: 'مساء الخير',
+    goodEvening: 'مساء الخير',
+    readyToFocus: 'لنجعل هذا اليوم مثمراً.',
+    active: 'نشط',
+    logout: 'تسجيل الخروج',
+    quickSearch: 'بحث سريع',
+    commandPlaceholder: 'الانتقال إلى...',
+    noResults: 'لا توجد نتائج.',
+    cancel: 'إلغاء',
+    checkingSession: 'جارٍ التحقق من الجلسة...',
+    announcement: 'إعلان',
+    examToday: 'امتحان اليوم!',
+    focusFlow: 'التركيز',
+    quickStats: 'إحصائيات سريعة',
+    activeSubject: 'المادة النشطة',
+    noActiveSubject: 'لا توجد مادة نشطة — أضف واحدة في المواد.',
+    resume: 'متابعة',
+    todaysRoadmap: 'خطة اليوم',
+    nothingScheduled: 'لا شيء مُقرر — استمتع بيوم هادئ.',
+    today: 'اليوم',
+    quickDrop: 'الموارد الأخيرة',
+    noFilesYetShort: 'لم يتم رفع أي ملفات بعد.',
+    browseAll: 'تصفح المواد',
+    openTimer: 'فتح المؤقت الكامل',
+    pomodoroTimer: 'مؤقت التركيز',
+    focusSession: 'جلسة تركيز',
+    shortBreak: 'استراحة قصيرة',
+    startFocus: 'ابدأ التركيز',
+    pauseTimer: 'إيقاف مؤقت',
+    stayFocused: 'حافظ على تركيزك في مهمتك.',
+    takeABreather: 'خذ استراحة واسترخِ.',
+    focusMinutes: 'التركيز (دقيقة)',
+    breakMinutes: 'الاستراحة (دقيقة)',
+    todayFocus: 'تركيز اليوم',
+    dailyGoals: 'الأهداف اليومية',
+    addGoalPlaceholder: 'أضف هدفاً جديداً...',
+    loadingGoals: 'جارٍ تحميل الأهداف...',
+    noGoals: 'لم تتم إضافة أهداف بعد.',
+    tasksDone: 'المهام المنجزة',
+    calendarEvents: 'التقويم والأحداث',
+    holidaysHighlight: 'الأعياد الرسمية التونسية مظللة باللون',
+    moodHint: 'انقر على النقطة في أي يوم لتسجيل حالتك المزاجية',
+    eventTitlePlaceholder: 'عنوان الحدث أو الامتحان...',
+    addEvent: 'إضافة حدث',
+    howFeeling: 'كيف تشعر؟',
+    setMood: 'تحديد الحالة المزاجية',
+    sun: 'أحد', mon: 'اثنين', tue: 'ثلاثاء', wed: 'أربعاء', thu: 'خميس', fri: 'جمعة', sat: 'سبت',
+    quickNotes: 'ملاحظات سريعة',
+    scratchpadPlaceholder: 'دوّن أفكاراً سريعة أو تذكيرات أو أشياء للبحث عنها لاحقاً...',
+    saving: 'جارٍ الحفظ...',
+    saved: 'تم الحفظ ✓',
+    subjectFolders: 'المواد',
+    subjectFoldersDrive: 'المواد ومستودع الموارد',
+    folderClickPrompt: 'انقر على أي مادة لفتحها وإدارة الملاحظات والتمارين وملفات PDF.',
+    folderPlaceholder: 'اسم المادة (مثال: الرياضيات، الهندسة المعمارية)...',
+    addFolder: 'إضافة',
+    searchFolders: 'ابحث عن مادة...',
+    loadingFolders: 'جارٍ تحميل المواد...',
+    noFolders: 'لم يتم إنشاء أي مادة بعد.',
+    noFoldersMatch: 'لا توجد مادة تطابق بحثك.',
+    mastered: 'متقَن',
+    inProgress: 'قيد التقدم',
+    openFolder: 'فتح',
+    foldersCount: 'المجلدات',
+    folderDriveFiles: 'إدارة الملفات وملفات PDF وموارد هذه المادة',
+    filesUploaded: 'ملف(ات) مرفوعة في هذا المجلد',
+    uploadFile: 'رفع ملف',
+    uploading: 'جارٍ الرفع...',
+    noFilesYet: 'لم يتم رفع أي ملف إلى هذا المجلد بعد.',
+    aiFlashcards: 'البطاقات التعليمية',
+    assistantHint: 'يطفو مساعدك الدراسي في زاوية كل صفحة — انقر على فقاعة الدردشة لفتحها في أي وقت.',
+    dashboardWorkspace: 'مساحة عمل لوحة التحكم',
+    driveTab: 'التمارين وملخصات الدروس',
+    assistantTab: 'المساعد الذكي',
+    buddiesTab: 'رفقاء الدراسة',
+    reviewsTab: 'التقييمات',
+    accountTab: 'الحساب',
+  },
+};
+
+// Motivational quotes, per language — used by STUDY_QUOTES rotation in page.tsx
+export const STUDY_QUOTES_BY_LANG: Record<string, string[]> = {
+  en: [
+    "The expert in anything was once a beginner.",
+    "Small steps every day lead to big results.",
+    "Discipline beats motivation when motivation runs out.",
+    "Focus on progress, not perfection.",
+    "Your future self is watching you right now.",
+    "Consistency compounds — keep showing up.",
+    "Hard work quietly beats talent that doesn't work hard.",
+  ],
+  fr: [
+    "L'expert dans n'importe quel domaine a d'abord été débutant.",
+    "De petits pas chaque jour mènent à de grands résultats.",
+    "La discipline l'emporte sur la motivation quand celle-ci s'essouffle.",
+    "Concentrez-vous sur le progrès, pas la perfection.",
+    "Votre futur vous observe en ce moment même.",
+    "La constance porte ses fruits — continuez à vous présenter.",
+    "Le travail acharné bat discrètement le talent qui ne travaille pas dur.",
+  ],
+  ar: [
+    "الخبير في أي مجال كان مبتدئاً في يوم من الأيام.",
+    "خطوات صغيرة كل يوم تؤدي إلى نتائج كبيرة.",
+    "الانضباط يتفوق على الحافز عندما ينفد الحافز.",
+    "ركّز على التقدم، لا على الكمال.",
+    "نفسك في المستقبل يراقبك الآن.",
+    "الاستمرارية تتراكم — واصل الحضور.",
+    "العمل الجاد يتفوق بهدوء على الموهبة التي لا تعمل بجد.",
+  ],
+};
+
+// Tunisian holiday names, per language — keyed the same way as TUNISIAN_HOLIDAYS in page.tsx (MM-DD)
+export const HOLIDAY_NAMES_BY_LANG: Record<string, Record<string, string>> = {
+  en: {
+    '01-01': "New Year's Day",
+    '01-14': 'Revolution & Youth Day',
+    '03-20': 'Independence Day',
+    '04-09': "Martyrs' Day",
+    '05-01': 'Labor Day',
+    '07-25': 'Republic Day',
+    '08-13': "Women's Day",
+    '10-15': 'Evacuation Day',
+  },
+  fr: {
+    '01-01': 'Jour de l\u2019An',
+    '01-14': 'Fête de la Révolution et de la Jeunesse',
+    '03-20': 'Fête de l\u2019Indépendance',
+    '04-09': 'Journée des Martyrs',
+    '05-01': 'Fête du Travail',
+    '07-25': 'Fête de la République',
+    '08-13': 'Fête de la Femme',
+    '10-15': 'Fête de l\u2019Évacuation',
+  },
+  ar: {
+    '01-01': 'رأس السنة الميلادية',
+    '01-14': 'عيد الثورة والشباب',
+    '03-20': 'عيد الاستقلال',
+    '04-09': 'عيد الشهداء',
+    '05-01': 'عيد الشغل',
+    '07-25': 'عيد الجمهورية',
+    '08-13': 'عيد المرأة',
+    '10-15': 'عيد الجلاء',
+  },
+};
+
+// Mood picker labels, per language — same order as MOOD_OPTIONS emojis in page.tsx
+export const MOOD_LABELS_BY_LANG: Record<string, string[]> = {
+  en: ['High Energy', 'Tired', 'Productive', 'Calm', 'Stressed'],
+  fr: ['Plein d\u2019Énergie', 'Fatigué', 'Productif', 'Calme', 'Stressé'],
+  ar: ['طاقة عالية', 'متعب', 'منتج', 'هادئ', 'متوتر'],
 };
 
 interface LanguageContextType {
@@ -215,6 +338,12 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
     const savedLang = localStorage.getItem('app_language') || 'en';
     setLanguageState(savedLang);
   }, []);
+
+  // Keep <html dir="rtl"/"ltr"> and lang attribute in sync with the chosen language
+  useEffect(() => {
+    document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = language;
+  }, [language]);
 
   const setLanguage = (lang: string) => {
     setLanguageState(lang);

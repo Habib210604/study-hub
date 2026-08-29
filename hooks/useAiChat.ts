@@ -3,21 +3,25 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/app/supabase';
 
-export function useAiChat() {
-  const [conversations, setConversations] = useState([]);
-  const [loadingConversations, setLoadingConversations] = useState(true);
-  const [activeConversationId, setActiveConversationId] = useState(null); // null = fresh, unsaved chat
+type Conversation = { id: string; title: string; updated_at: string };
+type ChatImage = { base64: string; mimeType: string; previewUrl: string };
+type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string; image?: ChatImage };
 
-  const [messages, setMessages] = useState([]);
+export function useAiChat() {
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [loadingConversations, setLoadingConversations] = useState(true);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null); // null = fresh, unsaved chat
+
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [fileContext, setFileContext] = useState('');
   const [fileName, setFileName] = useState('');
-  const [pendingImage, setPendingImage] = useState(null);
+  const [pendingImage, setPendingImage] = useState<ChatImage | null>(null);
   const [uploadError, setUploadError] = useState('');
 
-  const userIdRef = useRef(null);
+  const userIdRef = useRef<string | null>(null);
 
   // On open, load the list of past conversations — but start on a FRESH,
   // unsaved chat rather than auto-resuming the last one. Matches ChatGPT/Claude:
@@ -46,7 +50,7 @@ export function useAiChat() {
     if (!error && data) setConversations(data);
   };
 
-  const loadConversationMessages = async (conversationId) => {
+  const loadConversationMessages = async (conversationId: string) => {
     setLoadingMessages(true);
     const { data, error } = await supabase
       .from('ai_messages')
@@ -54,12 +58,12 @@ export function useAiChat() {
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true });
     if (!error && data) {
-      setMessages(data.map((m) => ({ id: String(m.id), role: m.role, content: m.content })));
+      setMessages(data.map((m: any) => ({ id: String(m.id), role: m.role, content: m.content })));
     }
     setLoadingMessages(false);
   };
 
-  const openConversation = async (conversationId) => {
+  const openConversation = async (conversationId: string) => {
     setActiveConversationId(conversationId);
     await loadConversationMessages(conversationId);
   };
@@ -71,17 +75,17 @@ export function useAiChat() {
     clearAttachment();
   };
 
-  const deleteConversations = async (ids) => {
+  const deleteConversations = async (ids: string[]) => {
     await supabase.from('ai_conversations').delete().in('id', ids);
     setConversations((prev) => prev.filter((c) => !ids.includes(c.id)));
-    if (ids.includes(activeConversationId)) {
+    if (activeConversationId && ids.includes(activeConversationId)) {
       startNewChat();
     }
   };
 
   // Creates the conversation row the moment the first message is sent,
   // titled from that first message (truncated) — never before that.
-  const ensureConversation = async (firstMessageContent) => {
+  const ensureConversation = async (firstMessageContent: string): Promise<string | null> => {
     if (activeConversationId) return activeConversationId;
     const title = firstMessageContent.trim().slice(0, 60) || 'New Chat';
     const { data, error } = await supabase
@@ -95,28 +99,29 @@ export function useAiChat() {
     return data.id;
   };
 
-  const touchConversation = async (conversationId) => {
+  const touchConversation = async (conversationId: string) => {
     const now = new Date().toISOString();
     await supabase.from('ai_conversations').update({ updated_at: now }).eq('id', conversationId);
     setConversations((prev) =>
-      prev.map((c) => (c.id === conversationId ? { ...c, updated_at: now } : c)).sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+      prev.map((c) => (c.id === conversationId ? { ...c, updated_at: now } : c))
+        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
     );
   };
 
-  const persistMessage = async (conversationId, role, content) => {
+  const persistMessage = async (conversationId: string, role: 'user' | 'assistant', content: string) => {
     if (!userIdRef.current || !conversationId) return;
     await supabase.from('ai_messages').insert([{ user_id: userIdRef.current, conversation_id: conversationId, role, content }]);
   };
 
-  const fileToBase64 = (file) =>
+  const fileToBase64 = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onload = () => resolve((reader.result as string).split(',')[1]);
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
 
-  const handleFileSelected = async (file) => {
+  const handleFileSelected = async (file: File | undefined | null) => {
     if (!file) return;
     setUploadError('');
     const isImage = file.type.startsWith('image/');
@@ -154,19 +159,18 @@ export function useAiChat() {
     setUploadError('');
   };
 
-  const sendMessage = async (e) => {
+  const sendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if ((!input.trim() && !pendingImage) || isLoading) return;
 
     const userMessageContent = input || (pendingImage ? 'What do you see in this image?' : '');
     setInput('');
 
-    const newUserMessage = { id: Date.now().toString(), role: 'user', content: userMessageContent, image: pendingImage || undefined };
+    const newUserMessage: ChatMessage = { id: Date.now().toString(), role: 'user', content: userMessageContent, image: pendingImage || undefined };
     const updatedMessages = [...messages, newUserMessage];
     setMessages(updatedMessages);
     setIsLoading(true);
 
-    const imageForRequest = pendingImage;
     setPendingImage(null);
     if (!fileContext) setFileName('');
 
@@ -192,15 +196,15 @@ export function useAiChat() {
       const data = await response.json();
       if (data.error) throw new Error(data.error);
 
-      const assistantMessage = { id: (Date.now() + 1).toString(), role: 'assistant', content: data.content };
+      const assistantMessage: ChatMessage = { id: (Date.now() + 1).toString(), role: 'assistant', content: data.content };
       setMessages([...updatedMessages, assistantMessage]);
       if (conversationId) {
         persistMessage(conversationId, 'assistant', data.content);
         touchConversation(conversationId);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Chat error:', err.message);
-      const errorMessage = {
+      const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: 'Sorry, I encountered an error connecting to the AI assistant. Please try again.',

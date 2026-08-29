@@ -6,9 +6,14 @@ import { streamText } from 'ai';
 
 export const maxDuration = 30;
 
-// 1. Existing GET Handler for Event Reminders (Untouched)
+// 1. Existing GET Handler for Event Reminders (now secured with CRON_SECRET)
 export async function GET(req: Request) {
   try {
+    const authHeader = req.headers.get('authorization');
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     const resendApiKey = process.env.RESEND_API_KEY;
@@ -104,7 +109,7 @@ export async function POST(req: Request) {
       messages,
     });
 
-    return result.toDataStreamResponse();
+    return result.toTextStreamResponse();
   } catch (err: any) {
     console.error('🔴 ERROR IN AI CHAT API:', err.message || err);
     return NextResponse.json({ error: err.message || 'Internal Server Error' }, { status: 500 });

@@ -5,16 +5,18 @@ import { supabase } from '@/app/supabase';
 
 const INTERVAL_SEQUENCE = [1, 3, 7, 14, 30, 60]; // days
 
+type Flashcard = { question: string; answer: string };
+
 export default function FlashcardGenerator() {
   const [mode, setMode] = useState('generate'); // 'generate' | 'review'
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
-  const [flashcards, setFlashcards] = useState([]); // freshly generated batch (in-memory browse)
+  const [flashcards, setFlashcards] = useState<Flashcard[]>([]); // freshly generated batch (in-memory browse)
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [userId, setUserId] = useState(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
-  const [dueCards, setDueCards] = useState([]);
+  const [dueCards, setDueCards] = useState<any[]>([]);
   const [loadingDue, setLoadingDue] = useState(true);
   const [reviewIndex, setReviewIndex] = useState(0);
   const [reviewFlipped, setReviewFlipped] = useState(false);
@@ -61,7 +63,7 @@ export default function FlashcardGenerator() {
     });
 
     const responseText = await response.text();
-    let data;
+    let data: any;
     try {
       data = responseText ? JSON.parse(responseText) : {};
     } catch (parseError) {
@@ -74,11 +76,11 @@ export default function FlashcardGenerator() {
     return data;
   };
 
-  const isOverloadError = (message) =>
+  const isOverloadError = (message: string) =>
     typeof message === 'string' &&
     (message.toLowerCase().includes('high demand') || message.toLowerCase().includes('overloaded') || message.toLowerCase().includes('503'));
 
-  const generateCards = async (e) => {
+  const generateCards = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!notes.trim()) return;
 
@@ -86,7 +88,7 @@ export default function FlashcardGenerator() {
     setGenerateError('');
 
     const maxAttempts = 3;
-    let lastError = null;
+    let lastError: any = null;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
@@ -104,7 +106,7 @@ export default function FlashcardGenerator() {
           setIsFlipped(false);
 
           if (userId) {
-            const rows = parsedCards.map((c) => ({
+            const rows = parsedCards.map((c: Flashcard) => ({
               user_id: userId,
               question: c.question,
               answer: c.answer,
@@ -120,7 +122,7 @@ export default function FlashcardGenerator() {
         } else {
           throw new Error("AI did not return a valid array of flashcards.");
         }
-      } catch (err) {
+      } catch (err: any) {
         lastError = err;
         // console.warn (not console.error) so Next.js's dev overlay doesn't treat
         // this handled, retryable error as an app crash.
@@ -144,7 +146,7 @@ export default function FlashcardGenerator() {
   };
 
   // --- Spaced repetition grading ---
-  const gradeCard = async (grade) => {
+  const gradeCard = async (grade: 'again' | 'good' | 'easy') => {
     const card = dueCards[reviewIndex];
     if (!card || grading) return;
     setGrading(true);

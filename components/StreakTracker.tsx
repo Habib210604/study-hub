@@ -4,7 +4,7 @@ import { Flame, Trophy } from 'lucide-react';
 import { supabase } from '@/app/supabase';
 
 export default function StreakTracker() {
-  const [streak, setStreak] = useState(null);
+  const [streak, setStreak] = useState<number | null>(null);
 
   useEffect(() => {
     let isMounted = true;

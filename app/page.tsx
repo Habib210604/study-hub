@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { supabase } from './supabase';
 import Auth from './auth';
-import { useLanguage } from '@/context/LanguageContext';
+import { useLanguage, STUDY_QUOTES_BY_LANG, HOLIDAY_NAMES_BY_LANG, MOOD_LABELS_BY_LANG } from '@/context/LanguageContext';
 import StudyAiWidget from '@/components/StudyAiWidget';
 import AssistantFullScreen from '@/components/AssistantFullScreen';
 import PlanGate from '@/components/PlanGate';
@@ -22,41 +22,21 @@ import StudyBuddies from '@/components/StudyBuddies';
 import NotesApp from '@/components/NotesApp';
 import AccountCenter from '@/components/AccountCenter';
 
-const TUNISIAN_HOLIDAYS: Record<string, string> = {
-  '01-01': 'New Year\'s Day',
-  '12-17': 'Revolution & Youth Day',
-  '03-20': 'Independence Day',
-  '04-09': 'Martyrs\' Day',
-  '05-01': 'Labor Day',
-  '07-25': 'Republic Day',
-  '08-13': 'Women\'s Day',
-  '10-15': 'Evacuation Day',
-};
-
-const MOOD_OPTIONS = [
-  { emoji: '⚡', label: 'High Energy' },
-  { emoji: '☕', label: 'Tired' },
-  { emoji: '🔥', label: 'Productive' },
-  { emoji: '🌊', label: 'Calm' },
-  { emoji: '😩', label: 'Stressed' },
-];
-
-const STUDY_QUOTES = [
-  "The expert in anything was once a beginner.",
-  "Small steps every day lead to big results.",
-  "Discipline beats motivation when motivation runs out.",
-  "Focus on progress, not perfection.",
-  "Your future self is watching you right now.",
-  "Consistency compounds — keep showing up.",
-  "Hard work quietly beats talent that doesn't work hard.",
-];
-
 type TabKey = 'overview' | 'focus' | 'goals' | 'calendar' | 'notes' | 'folders' | 'drive' | 'flashcards' | 'assistant' | 'reviews' | 'buddies' | 'account';
+
+const LANGUAGE_CYCLE = ['en', 'fr', 'ar'];
 
 function StudyDashboardInner() {
   const { t, language, setLanguage } = useLanguage();
 
+  const STUDY_QUOTES = STUDY_QUOTES_BY_LANG[language] || STUDY_QUOTES_BY_LANG.en;
+  const TUNISIAN_HOLIDAYS = HOLIDAY_NAMES_BY_LANG[language] || HOLIDAY_NAMES_BY_LANG.en;
+  const MOOD_EMOJIS = ['⚡', '☕', '🔥', '🌊', '😩'];
+  const moodLabels = MOOD_LABELS_BY_LANG[language] || MOOD_LABELS_BY_LANG.en;
+  const MOOD_OPTIONS = MOOD_EMOJIS.map((emoji, i) => ({ emoji, label: moodLabels[i] }));
+
   const [session, setSession] = useState<any>(null);
+  const [userFirstName, setUserFirstName] = useState('');
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [theme, setTheme] = useState('dark');
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
@@ -73,11 +53,20 @@ function StudyDashboardInner() {
   const [focusSecondsToday, setFocusSecondsToday] = useState(0);
 
   // --- Shared Focus Room state ---
+  // roomActive = whether THIS user has joined (controls their own credit + presence).
+  // roomElapsedSeconds = seconds since UTC midnight — the same for every user's browser,
+  // with no backend syncing needed, and it never stops regardless of who joins/leaves.
   const [roomActive, setRoomActive] = useState(false);
-  const [roomSeconds, setRoomSeconds] = useState(0);
+  const [roomElapsedSeconds, setRoomElapsedSeconds] = useState(0);
   const [roomPresenceCount, setRoomPresenceCount] = useState(0);
   const roomChannelRef = useRef<any>(null);
-const roomIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const roomAccrualIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const getSecondsSinceMidnightUTC = () => {
+    const now = new Date();
+    const midnightUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    return Math.floor((now.getTime() - midnightUTC) / 1000);
+  };
 
   // --- Customizable Pomodoro durations (in minutes) ---
   const [focusMinutes, setFocusMinutes] = useState(25);
@@ -139,6 +128,15 @@ const roomIntervalRef = useRef<NodeJS.Timeout | null>(null);
       setQuoteIndex((prev) => (prev + 1) % STUDY_QUOTES.length);
     }, 6000);
     return () => clearInterval(interval);
+  }, [STUDY_QUOTES.length]);
+
+  // The room clock ticks continuously, all day, independent of anyone joining
+  useEffect(() => {
+    setRoomElapsedSeconds(getSecondsSinceMidnightUTC());
+    const interval = setInterval(() => {
+      setRoomElapsedSeconds(getSecondsSinceMidnightUTC());
+    }, 1000);
+    return () => clearInterval(interval);
   }, []);
 
   // --- Cmd/Ctrl+K listener ---
@@ -172,6 +170,12 @@ const roomIntervalRef = useRef<NodeJS.Timeout | null>(null);
     }
   };
 
+  const cycleLanguage = () => {
+    const currentIndex = LANGUAGE_CYCLE.indexOf(language);
+    const nextLanguage = LANGUAGE_CYCLE[(currentIndex + 1) % LANGUAGE_CYCLE.length];
+    setLanguage(nextLanguage);
+  };
+
   useEffect(() => {
     if (session) {
       fetchGoals();
@@ -180,9 +184,9 @@ const roomIntervalRef = useRef<NodeJS.Timeout | null>(null);
       fetchEvents();
       fetchMoods();
       fetchRecentFiles();
+      fetchUserFirstName();
     }
   }, [session]);
-
   const fetchAnnouncement = async () => {
     const { data, error } = await supabase
       .from('announcements')
@@ -190,6 +194,18 @@ const roomIntervalRef = useRef<NodeJS.Timeout | null>(null);
       .order('created_at', { ascending: false })
       .limit(1);
     if (!error && data && data.length > 0) setAnnouncement(data[0]);
+  };
+
+    const fetchUserFirstName = async () => {
+    if (!session?.user) return;
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('first_name')
+      .eq('id', session.user.id)
+      .single();
+    if (!error && data?.first_name) {
+      setUserFirstName(data.first_name);
+    }
   };
 
   const fetchEvents = async () => {
@@ -462,11 +478,10 @@ const roomIntervalRef = useRef<NodeJS.Timeout | null>(null);
     }
   };
 
-  // --- Shared Focus Room: auto-running, uneditable timer that feeds Today's Focus ---
+  // --- Shared Focus Room: joining only affects YOUR credit + presence; the clock itself never stops ---
   const joinFocusRoom = () => {
     if (roomActive) return;
     setRoomActive(true);
-    setRoomSeconds(0);
 
     // Presence channel: lets everyone in the room see a live count of who else is focusing
     const channel = supabase.channel('focus-room', {
@@ -484,9 +499,8 @@ const roomIntervalRef = useRef<NodeJS.Timeout | null>(null);
       });
     roomChannelRef.current = channel;
 
-    // Count-up timer: every second, add to both the room display AND today's real focus total
-    roomIntervalRef.current = setInterval(() => {
-      setRoomSeconds((prev) => prev + 1);
+    // Personal credit only — the shared clock above keeps running regardless
+    roomAccrualIntervalRef.current = setInterval(() => {
       setFocusSecondsToday((prevSecs) => {
         const updatedSecs = prevSecs + 1;
         const todayStr = new Date().toISOString().slice(0, 10);
@@ -498,7 +512,7 @@ const roomIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const leaveFocusRoom = () => {
     setRoomActive(false);
-    if (roomIntervalRef.current) clearInterval(roomIntervalRef.current);
+    if (roomAccrualIntervalRef.current) clearInterval(roomAccrualIntervalRef.current);
     if (roomChannelRef.current) {
       roomChannelRef.current.untrack();
       supabase.removeChannel(roomChannelRef.current);
@@ -506,10 +520,10 @@ const roomIntervalRef = useRef<NodeJS.Timeout | null>(null);
     }
   };
 
-  // Clean up the room timer/channel if the user navigates away entirely
+  // Clean up if the user navigates away entirely
   useEffect(() => {
     return () => {
-      if (roomIntervalRef.current) clearInterval(roomIntervalRef.current);
+      if (roomAccrualIntervalRef.current) clearInterval(roomAccrualIntervalRef.current);
       if (roomChannelRef.current) supabase.removeChannel(roomChannelRef.current);
     };
   }, []);
@@ -564,23 +578,25 @@ const roomIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const greetingHour = new Date().getHours();
   const greeting = greetingHour < 12 ? (t('goodMorning') || 'Good morning') : greetingHour < 18 ? (t('goodAfternoon') || 'Good afternoon') : (t('goodEvening') || 'Good evening');
-  const firstName = session?.user?.email?.split('@')[0] || '';
+  const firstName = userFirstName || session?.user?.email?.split('@')[0] || '';
 
   const filteredModules = modules.filter((m) => m.title.toLowerCase().includes(folderSearch.toLowerCase()));
 
+  const localeMap: Record<string, string> = { en: 'en-US', fr: 'fr-FR', ar: 'ar-TN' };
+
   const TABS: { key: TabKey; label: string; icon: any }[] = [
-    { key: 'overview', label: t('overview') || 'Overview', icon: LayoutGrid },
-    { key: 'focus', label: t('pomodoroTimer') || 'Focus Timer', icon: Timer },
-    { key: 'goals', label: t('dailyGoals') || 'Goals', icon: Target },
-    { key: 'calendar', label: t('calendarEvents') || 'Calendar', icon: CalendarDays },
-    { key: 'notes', label: t('quickNotes') || 'Notes', icon: StickyNote },
-    { key: 'folders', label: t('subjectFolders') || 'Subjects', icon: Folder },
-    { key: 'drive', label: 'Drive', icon: BookOpenCheck },
-    { key: 'buddies', label: 'Study Buddies', icon: Users },
-    { key: 'flashcards', label: t('aiFlashcards') || 'Flashcards', icon: BrainCircuit },
-    { key: 'assistant', label: 'Assistant', icon: Bot },
-    { key: 'reviews', label: 'Reviews', icon: Star },
-    { key: 'account', label: 'Account', icon: User },
+    { key: 'overview', label: t('overview'), icon: LayoutGrid },
+    { key: 'focus', label: t('pomodoroTimer'), icon: Timer },
+    { key: 'goals', label: t('dailyGoals'), icon: Target },
+    { key: 'calendar', label: t('calendarEvents'), icon: CalendarDays },
+    { key: 'notes', label: t('quickNotes'), icon: StickyNote },
+    { key: 'folders', label: t('subjectFolders'), icon: Folder },
+    { key: 'drive', label: t('driveTab'), icon: BookOpenCheck },
+    { key: 'buddies', label: t('buddiesTab'), icon: Users },
+    { key: 'flashcards', label: t('aiFlashcards'), icon: BrainCircuit },
+    { key: 'assistant', label: t('assistantTab'), icon: Bot },
+    { key: 'reviews', label: t('reviewsTab'), icon: Star },
+    { key: 'account', label: t('accountTab'), icon: User },
   ];
 
   const commandResults = TABS.filter((tabItem) =>
@@ -678,6 +694,7 @@ const roomIntervalRef = useRef<NodeJS.Timeout | null>(null);
           background-size: 200% 200%;
           animation: shiftGradient 12s ease infinite;
         }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
       `}</style>
 
       {/* --- Sidebar --- */}
@@ -732,12 +749,12 @@ const roomIntervalRef = useRef<NodeJS.Timeout | null>(null);
               <span className="relative flex h-1.5 w-1.5">
                 <span className="pulse-dot absolute inline-flex h-full w-full rounded-full bg-emerald-400" />
               </span>
-              {t('active') || 'Active'} · {currentDate.toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+              {t('active') || 'Active'} · {currentDate.toLocaleDateString(localeMap[language] || 'en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
             </div>
             <div className="flex items-center gap-2">
               <StreakTracker />
               <button
-                onClick={() => setLanguage(language === 'en' ? 'fr' : 'en')}
+                onClick={cycleLanguage}
                 className="px-2.5 py-1 text-[12px] font-medium text-[var(--text-muted-2)] hover:text-[var(--text)] hover:bg-[var(--surface-1)] rounded-md transition cursor-pointer"
               >
                 {language?.toUpperCase() || 'LANG'}
@@ -940,7 +957,7 @@ const roomIntervalRef = useRef<NodeJS.Timeout | null>(null);
                     {t('browseAll') || 'Browse Subjects'} <ArrowRight size={12} />
                   </button>
                   <button onClick={() => setActiveTab('drive')} className="text-xs font-medium text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer">
-                    Browse Drive <ArrowRight size={12} />
+                    {t('driveTab')} <ArrowRight size={12} />
                   </button>
                 </div>
               </div>
@@ -1005,27 +1022,48 @@ const roomIntervalRef = useRef<NodeJS.Timeout | null>(null);
             </div>
           )}
 
-          {/* ============ SHARED FOCUS ROOM (sits alongside the personal timer, same Focus tab) ============ */}
+          {/* ============ SHARED FOCUS ROOM (all-day clock, sits alongside the personal timer) ============ */}
           {activeTab === 'focus' && (
-            <div className="panel rounded-2xl p-6 mt-4 fade-in">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-[var(--text)] flex items-center gap-2">
-                  <Radio size={17} className={roomActive ? 'text-rose-400 animate-pulse' : 'text-indigo-400'} />
+            <div
+              className="relative overflow-hidden rounded-2xl p-6 mt-4 fade-in border border-[var(--border)]"
+              style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.08), rgba(45,212,191,0.06))' }}
+            >
+              {/* decorative ambient glow */}
+              <div className="pointer-events-none absolute -top-16 -right-16 w-56 h-56 rounded-full bg-indigo-500/10 blur-3xl" />
+              <div className="pointer-events-none absolute -bottom-20 -left-10 w-64 h-64 rounded-full bg-teal-400/10 blur-3xl" />
+
+              <div className="relative flex items-center justify-between mb-1">
+                <h3 className="font-['Manrope'] font-bold text-[var(--text)] flex items-center gap-2">
+                  <Radio size={17} className="text-indigo-400 animate-pulse" />
                   Focus Room
+                  <span className="text-[9px] font-bold uppercase tracking-wider bg-rose-500/15 text-rose-400 px-1.5 py-0.5 rounded-full">Live</span>
                 </h3>
                 <span className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] bg-black/20 border border-[var(--border)] rounded-full px-3 py-1">
                   <Users size={12} /> {roomPresenceCount} studying now
                 </span>
               </div>
-              <p className="text-xs text-[var(--text-muted)] mb-5">
-                Join a shared, always-on session with other students — no settings to fiddle with, just start and focus together. Your time here counts straight toward Today's Focus.
+              <p className="relative text-xs text-[var(--text-muted)] mb-6">
+                A shared clock that runs all day, for everyone — jump in anytime. Your own minutes still count toward Today's Focus even after you leave.
               </p>
 
-              <div className="flex flex-col items-center py-4">
-                <div className="relative mb-4">
+              <div className="relative flex flex-col items-center py-4">
+                <div className="relative mb-5 flex items-center justify-center w-40 h-40">
                   <div className={`absolute inset-0 blur-3xl rounded-full transition-colors duration-1000 ${roomActive ? 'bg-rose-400/20' : 'bg-indigo-400/10'}`} />
-                  <div className="relative text-5xl font-['JetBrains_Mono'] font-bold tracking-tight text-[var(--text)]">
-                    {formatRoomTime(roomSeconds)}
+                  <svg
+                    className="absolute inset-0 w-full h-full"
+                    viewBox="0 0 100 100"
+                    style={{ animation: 'spin 14s linear infinite' }}
+                  >
+                    <circle cx="50" cy="50" r="46" fill="none" stroke="url(#roomGrad)" strokeWidth="1.5" strokeDasharray="4 10" strokeLinecap="round" />
+                    <defs>
+                      <linearGradient id="roomGrad" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#818cf8" />
+                        <stop offset="100%" stopColor="#2dd4bf" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                  <div className="relative text-4xl font-['JetBrains_Mono'] font-bold tracking-tight text-[var(--text)]">
+                    {formatRoomTime(roomElapsedSeconds)}
                   </div>
                 </div>
 
@@ -1034,15 +1072,18 @@ const roomIntervalRef = useRef<NodeJS.Timeout | null>(null);
                     onClick={leaveFocusRoom}
                     className="px-6 py-2.5 rounded-lg font-semibold flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition cursor-pointer"
                   >
-                    <LogOut size={16} /> Leave Room
+                    <LogOut size={16} /> Leave
                   </button>
                 ) : (
                   <button
                     onClick={joinFocusRoom}
                     className="px-6 py-2.5 rounded-lg font-semibold flex items-center gap-2 bg-indigo-500 hover:brightness-110 text-white transition cursor-pointer"
                   >
-                    <Play size={16} /> Start
+                    <Users size={16} /> Join the Room
                   </button>
+                )}
+                {roomActive && (
+                  <p className="text-[11px] text-[var(--text-faint)] mt-3">You're currently earning credit toward Today's Focus.</p>
                 )}
               </div>
             </div>
@@ -1101,7 +1142,7 @@ const roomIntervalRef = useRef<NodeJS.Timeout | null>(null);
                 </div>
                 <div className="flex items-center gap-3">
                   <button onClick={prevMonth} className="p-1.5 border border-[var(--border)] hover:border-[var(--border-strong)] text-[var(--text)] rounded-lg transition cursor-pointer"><ChevronLeft size={16} /></button>
-                  <span className="text-sm font-bold text-[var(--text)] min-w-[130px] text-center">{currentDate.toLocaleString(language === 'fr' ? 'fr-FR' : 'default', { month: 'long', year: 'numeric' })}</span>
+                  <span className="text-sm font-bold text-[var(--text)] min-w-[130px] text-center">{currentDate.toLocaleString(localeMap[language] || 'default', { month: 'long', year: 'numeric' })}</span>
                   <button onClick={nextMonth} className="p-1.5 border border-[var(--border)] hover:border-[var(--border-strong)] text-[var(--text)] rounded-lg transition cursor-pointer"><ChevronRight size={16} /></button>
                 </div>
               </div>
@@ -1246,7 +1287,6 @@ const roomIntervalRef = useRef<NodeJS.Timeout | null>(null);
           )}
 
           {/* ============ REVIEWS TAB ============ */}
-                   {/* ============ REVIEWS TAB ============ */}
           {activeTab === 'reviews' && (
             <div key="reviews" className="panel rounded-2xl p-6 fade-in">
               <FeedbackTab />
@@ -1265,6 +1305,25 @@ const roomIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
       {/* --- AI Assistant bubble: floats on every tab EXCEPT Assistant, where the full-screen chat is already shown --- */}
       {activeTab !== 'assistant' && <StudyAiWidget />}
+
+           {/* --- Floating focus timer: shows on every OTHER tab while a session is active, sits just above the AI bubble --- */}
+      {activeTab !== 'focus' && (isRunning || roomActive) && (
+        <button
+          onClick={() => setActiveTab('focus')}
+          className="fixed bottom-24 right-6 z-40 flex items-center gap-2.5 px-4 py-2.5 rounded-full shadow-lg border border-[#D9C3A9] bg-[#F0DFC8] hover:bg-[#EAD5B5] transition cursor-pointer"
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full rounded-full bg-[#B08D5F] animate-ping opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#8C6D45]" />
+          </span>
+          <span className="font-['JetBrains_Mono'] text-sm font-bold text-[#4A3B2C]">
+            {isRunning ? formatTime(timeLeft) : formatRoomTime(roomElapsedSeconds)}
+          </span>
+          <span className="text-[11px] text-[#6E5D4C]">
+            {isRunning ? (mode === 'work' ? 'Focusing' : 'Break') : 'Focus Room'}
+          </span>
+        </button>
+      )}
 
       {/* --- Folder Drive Modal --- */}
       {activeFolder && (

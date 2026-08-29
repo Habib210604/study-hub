@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/app/supabase';
 import { Check, Copy, MessageCircle, Clock, ShieldAlert } from 'lucide-react';
@@ -15,16 +15,16 @@ const PLANS = [
   { key: '12m', label: '1 Year', months: 12, price: 75 },
 ];
 
-export default function PayPage() {
+function PayPageContent() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
-  const [userId, setUserId] = useState(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   // --- Resource-purchase mode (came from the Drive tab) ---
   const resourceId = searchParams.get('resource');
-  const [resource, setResource] = useState(null);
+  const [resource, setResource] = useState<{ id: string; title: string; price: number; resource_type: string } | null>(null);
   const [loadingResource, setLoadingResource] = useState(!!resourceId);
 
   // --- Subscription-plan mode ---
@@ -74,7 +74,7 @@ export default function PayPage() {
   const handleSendClick = async () => {
     if (!userId) return;
     if (isResourceMode && resource) {
-      await supabase.rpc('request_resource_purchase', { p_resource_id: resource.id });
+      await supabase.rpc('request_resource_purchase', { p_resource_id: resource?.id });
     } else {
       await supabase.rpc('select_paid_plan', { plan_label: selectedPlan.label });
     }
@@ -113,8 +113,8 @@ export default function PayPage() {
           <ShieldAlert size={20} className="text-amber-400 shrink-0" />
           <div>
             <h2 className="font-semibold text-amber-300 text-sm">
-              {isResourceMode ? `Unlock "${resource.title}"` : 'Your free trial or subscription has expired'}
-            </h2>
+              
+            </h2>{isResourceMode ? `Unlock "${resource?.title}"` : 'Your free trial or subscription has expired'}
             <p className="text-xs text-slate-400 mt-0.5">
               {isResourceMode
                 ? 'Complete the payment below to unlock this resource.'
@@ -125,12 +125,12 @@ export default function PayPage() {
 
         {/* Pricing: plan cards (subscription mode) or a single resource card */}
         {isResourceMode ? (
-          <div className="bg-slate-900 border border-teal-500/40 rounded-xl p-5">
-            <p className="text-xs text-slate-400 mb-1">{resource.resource_type === 'summary' ? 'Course Summary' : 'Exercise Set (with correction)'}</p>
-            <p className="text-lg font-bold text-white">{resource.title}</p>
-            <p className="text-2xl font-bold text-teal-400 mt-2">{resource.price} DT</p>
-          </div>
-        ) : (
+  <div className="bg-slate-900 border border-teal-500/40 rounded-xl p-5">
+    <p className="text-xs text-slate-400 mb-1">{resource?.resource_type === 'summary' ? 'Course Summary' : 'Exercise Set (with correction)'}</p>
+    <p className="text-lg font-bold text-white">{resource?.title}</p>
+    <p className="text-2xl font-bold text-teal-400 mt-2">{resource?.price} DT</p>
+  </div>
+) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {PLANS.map((plan) => {
               const isSelected = selectedPlan.key === plan.key;
@@ -210,5 +210,17 @@ export default function PayPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function PayPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0B0E17] text-[#ECEFF6] flex items-center justify-center">
+        <p className="text-sm text-slate-400">Loading...</p>
+      </div>
+    }>
+      <PayPageContent />
+    </Suspense>
   );
 }

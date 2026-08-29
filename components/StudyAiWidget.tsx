@@ -9,7 +9,7 @@ export default function StudyAiWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const {
     conversations, loadingConversations, activeConversationId,
@@ -18,15 +18,15 @@ export default function StudyAiWidget() {
     fileName, pendingImage, uploadError, handleFileSelected, clearAttachment,
   } = useAiChat();
 
-  const fileInputRef = useRef(null);
-  const cameraInputRef = useRef(null);
-  const scrollRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, isLoading]);
 
-  const toggleSelect = (id) => {
+  const toggleSelect = (id: string) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
@@ -43,7 +43,7 @@ export default function StudyAiWidget() {
     setShowHistory(false);
   };
 
-  const openFromHistory = async (id) => {
+  const openFromHistory = async (id: string) => {
     await openConversation(id);
     setShowHistory(false);
   };
