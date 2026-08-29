@@ -1155,12 +1155,12 @@ function StudyDashboardInner() {
                 </button>
               </form>
 
-              <div className="grid grid-cols-7 gap-1.5 text-center">
+              <div className="grid grid-cols-7 gap-1 md:gap-1.5 text-center">
                 {[t('sun') || 'Sun', t('mon') || 'Mon', t('tue') || 'Tue', t('wed') || 'Wed', t('thu') || 'Thu', t('fri') || 'Fri', t('sat') || 'Sat'].map((d) => (
-                  <div key={d} className="text-[var(--text-faint)] text-[10px] font-bold py-1.5 uppercase tracking-wider">{d}</div>
+                  <div key={d} className="text-[var(--text-faint)] text-[9px] md:text-[10px] font-bold py-1 md:py-1.5 uppercase tracking-wider truncate">{d}</div>
                 ))}
                 {Array.from({ length: firstDay }).map((_, idx) => (
-                  <div key={`empty-${idx}`} className="h-24 rounded-lg border border-[var(--border-faint)]"></div>
+                  <div key={`empty-${idx}`} className="h-14 md:h-24 rounded-lg border border-[var(--border-faint)]"></div>
                 ))}
                 {Array.from({ length: daysInMonth }).map((_, idx) => {
                   const dayNum = idx + 1;
@@ -1173,21 +1173,35 @@ function StudyDashboardInner() {
                   const dayMood = moods[fullDateStr];
 
                   return (
-                    <div key={dayNum} className={`h-24 p-1.5 rounded-lg border text-left flex flex-col justify-between relative transition ${holidayName ? 'bg-red-500/[0.06] border-red-400/20' : 'border-[var(--border)] hover:border-[var(--border-strong)]'}`}>
-                      <div className="flex justify-between items-start">
-                        <span className={`text-[11px] font-bold ${holidayName ? 'text-[var(--accent-red)]' : 'text-[var(--text)]'}`}>{dayNum}</span>
-                        {holidayName && <span className="text-[9px] bg-red-500/15 text-[var(--accent-red)] px-1 py-0.5 rounded truncate max-w-[70px]">🇹🇳 {holidayName}</span>}
-                        <button onClick={() => setMoodPickerDate(fullDateStr)} className="absolute top-1 right-1 w-4 h-4 flex items-center justify-center rounded-full hover:bg-[var(--surface-3)] transition cursor-pointer text-xs">
+                    <div key={dayNum} className={`h-14 md:h-24 p-1 md:p-1.5 rounded-lg border text-left flex flex-col justify-between relative transition ${holidayName ? 'bg-red-500/[0.06] border-red-400/20' : 'border-[var(--border)] hover:border-[var(--border-strong)]'}`}>
+                      <div className="flex justify-between items-start gap-0.5">
+                        <span className={`text-[10px] md:text-[11px] font-bold ${holidayName ? 'text-[var(--accent-red)]' : 'text-[var(--text)]'}`}>{dayNum}</span>
+                        {holidayName && <span className="hidden md:inline text-[9px] bg-red-500/15 text-[var(--accent-red)] px-1 py-0.5 rounded truncate max-w-[70px]">🇹🇳 {holidayName}</span>}
+                        {holidayName && <span className="md:hidden text-[10px]">🇹🇳</span>}
+                        <button onClick={() => setMoodPickerDate(fullDateStr)} className="absolute top-0.5 right-0.5 w-3.5 h-3.5 md:w-4 md:h-4 flex items-center justify-center rounded-full hover:bg-[var(--surface-3)] transition cursor-pointer text-[10px] md:text-xs">
                           {dayMood || <span className="w-1 h-1 rounded-full bg-white/20 block" />}
                         </button>
                       </div>
-                      <div className="space-y-1 overflow-y-auto max-h-10">
-                        {dayEvents.map((ev, evIdx) => (
-                          <div key={ev.id ?? evIdx} className="bg-indigo-500/[0.12] border border-indigo-400/20 text-[var(--accent-indigo)] text-[9px] p-1 rounded flex items-center justify-between group">
-                            <span className="truncate font-medium">{ev.title}</span>
-                            <button onClick={() => deleteEvent(ev.id)} className="opacity-0 group-hover:opacity-100 text-red-400 transition cursor-pointer">×</button>
-                          </div>
-                        ))}
+                      <div className="space-y-0.5 md:space-y-1 overflow-y-auto max-h-6 md:max-h-10">
+                        {dayEvents.length > 0 && (
+                          <>
+                            {/* Mobile: just a dot per event, no text — keeps the cell readable */}
+                            <div className="md:hidden flex flex-wrap gap-0.5">
+                              {dayEvents.map((ev, evIdx) => (
+                                <span key={ev.id ?? evIdx} className="w-1.5 h-1.5 rounded-full bg-indigo-400 block" title={ev.title} />
+                              ))}
+                            </div>
+                            {/* Desktop: full event chips as before */}
+                            <div className="hidden md:block space-y-1">
+                              {dayEvents.map((ev, evIdx) => (
+                                <div key={ev.id ?? evIdx} className="bg-indigo-500/[0.12] border border-indigo-400/20 text-[var(--accent-indigo)] text-[9px] p-1 rounded flex items-center justify-between group">
+                                  <span className="truncate font-medium">{ev.title}</span>
+                                  <button onClick={() => deleteEvent(ev.id)} className="opacity-0 group-hover:opacity-100 text-red-400 transition cursor-pointer">×</button>
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   );
