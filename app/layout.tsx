@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { ThemeProvider } from '@/components/ThemeProvider';
-import { LanguageProvider } from '@/context/LanguageContext'; // Adjust path if your context is elsewhere
+import { LanguageProvider } from '@/context/LanguageContext';
+import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -27,20 +28,9 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <LanguageProvider>
             {children}
+            <Analytics />
           </LanguageProvider>
         </ThemeProvider>
-      </body>
-    </html>
-  );
-}
-import { Analytics } from '@vercel/analytics/next';
-
-export default function RootLayout({ children }) {
-  return (
-    <html lang="en">
-      <body>
-        {children}
-        <Analytics />
       </body>
     </html>
   );
