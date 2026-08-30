@@ -334,22 +334,22 @@ export default function StudyBuddies() {
   const displayName = (u) => (u.first_name || u.last_name ? `${u.first_name || ''} ${u.last_name || ''}`.trim() : u.email);
 
   const renderTabBar = () => (
-    <div className="flex gap-2 mb-5">
+    <div className="flex gap-1.5 sm:gap-2 mb-5 overflow-x-auto pb-1 -mx-1 px-1">
       <button
         onClick={() => setView('group')}
-        className={`px-4 py-2 text-xs font-semibold rounded-lg transition cursor-pointer flex items-center gap-1.5 ${view === 'group' ? 'bg-indigo-600 text-white' : 'border border-[var(--border)] text-[var(--text-muted)]'}`}
+        className={`px-3 sm:px-4 py-2 text-[11px] sm:text-xs font-semibold rounded-lg transition cursor-pointer flex items-center gap-1 sm:gap-1.5 whitespace-nowrap shrink-0 ${view === 'group' ? 'bg-indigo-600 text-white' : 'border border-[var(--border)] text-[var(--text-muted)]'}`}
       >
         <UsersRound size={13} /> Class Group
       </button>
       <button
         onClick={() => setView('find')}
-        className={`px-4 py-2 text-xs font-semibold rounded-lg transition cursor-pointer flex items-center gap-1.5 ${view === 'find' ? 'bg-teal-600 text-white' : 'border border-[var(--border)] text-[var(--text-muted)]'}`}
+        className={`px-3 sm:px-4 py-2 text-[11px] sm:text-xs font-semibold rounded-lg transition cursor-pointer flex items-center gap-1 sm:gap-1.5 whitespace-nowrap shrink-0 ${view === 'find' ? 'bg-teal-600 text-white' : 'border border-[var(--border)] text-[var(--text-muted)]'}`}
       >
         <Search size={13} /> Find Classmates
       </button>
       <button
         onClick={() => setView('conversations')}
-        className={`px-4 py-2 text-xs font-semibold rounded-lg transition cursor-pointer flex items-center gap-1.5 ${view === 'conversations' ? 'bg-teal-600 text-white' : 'border border-[var(--border)] text-[var(--text-muted)]'}`}
+        className={`px-3 sm:px-4 py-2 text-[11px] sm:text-xs font-semibold rounded-lg transition cursor-pointer flex items-center gap-1 sm:gap-1.5 whitespace-nowrap shrink-0 ${view === 'conversations' ? 'bg-teal-600 text-white' : 'border border-[var(--border)] text-[var(--text-muted)]'}`}
       >
         <MessageCircle size={13} /> Conversations
       </button>

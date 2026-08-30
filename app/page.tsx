@@ -769,45 +769,49 @@ function StudyDashboardInner() {
 
         <div className="max-w-6xl mx-auto px-5 md:px-8 py-8 space-y-8">
 
-          {/* --- Dynamic greeting header: full-width illustration background, greeting overlaid on the right --- */}
-          <div
-            className="relative rounded-2xl overflow-hidden fade-in border border-[var(--border)] min-h-[180px] md:min-h-[220px] flex items-center justify-end bg-cover bg-center"
-            style={{ backgroundImage: "url('/welcome-banner.png')" }}
-          >
-            {/* Scrim: fades from transparent (left, over the illustration) to solid (right, behind the text) so the greeting stays readable regardless of theme */}
-            <div
-              className="absolute inset-0"
-              style={{ background: 'linear-gradient(to right, transparent 0%, var(--bg) 78%, var(--bg) 100%)', opacity: 0.9 }}
-            />
-            <div className="relative z-10 px-6 md:px-10 py-6 text-right max-w-[65%] md:max-w-[55%]">
-              <h1 className="font-['Manrope'] text-2xl md:text-3xl font-extrabold tracking-tight text-[var(--text)]">
-                {greeting}{firstName ? `, ${firstName}` : ''}.
-              </h1>
-              <p className="text-[var(--text-muted)] text-sm mt-1">{t('readyToFocus') || "Let's make today count."}</p>
-            </div>
-          </div>
-
-          {announcement && (
-            <div className="panel rounded-xl p-4 flex items-center gap-3 fade-in border-l-2 !border-l-[#F2A93B]">
-              <Megaphone size={16} className="text-[#F2A93B] shrink-0" />
-              <div className="min-w-0">
-                <span className="text-[11px] uppercase font-bold tracking-wider text-[#F2A93B] mr-2">{t('announcement') || 'Announcement'}</span>
-                <span className="text-sm text-[var(--text)] font-medium">{announcement.title}</span>
-                <p className="text-[var(--text-muted)] text-xs mt-0.5">{announcement.message}</p>
+          {activeTab !== 'assistant' && (
+            <>
+              {/* --- Dynamic greeting header: full-width illustration background, greeting overlaid on the right --- */}
+              <div
+                className="relative rounded-2xl overflow-hidden fade-in border border-[var(--border)] min-h-[180px] md:min-h-[220px] flex items-center justify-end bg-cover bg-center"
+                style={{ backgroundImage: "url('/welcome-banner.png')" }}
+              >
+                {/* Scrim: fades from transparent (left, over the illustration) to solid (right, behind the text) so the greeting stays readable regardless of theme */}
+                <div
+                  className="absolute inset-0"
+                  style={{ background: 'linear-gradient(to right, transparent 0%, var(--bg) 78%, var(--bg) 100%)', opacity: 0.9 }}
+                />
+                <div className="relative z-10 px-6 md:px-10 py-6 text-right max-w-[65%] md:max-w-[55%]">
+                  <h1 className="font-['Manrope'] text-2xl md:text-3xl font-extrabold tracking-tight text-[var(--text)]">
+                    {greeting}{firstName ? `, ${firstName}` : ''}.
+                  </h1>
+                  <p className="text-[var(--text-muted)] text-sm mt-1">{t('readyToFocus') || "Let's make today count."}</p>
+                </div>
               </div>
-            </div>
-          )}
 
-          {/* --- Daily Inspiration / Countdown ticker: persistent, always visible under the announcement --- */}
-          <div className="quote-gradient rounded-2xl p-4 border border-[var(--border)] flex items-center gap-3 fade-in">
-            <QuoteIcon size={15} className="text-[#F2A93B] shrink-0" />
-            <p key={quoteIndex} className="font-['Manrope'] text-sm text-[var(--text)] italic truncate">"{STUDY_QUOTES[quoteIndex]}"</p>
-            {nextExam && daysUntilExam !== null && (
-              <span className="ml-auto shrink-0 flex items-center gap-1.5 text-xs font-['JetBrains_Mono'] text-[var(--text-muted-2)]">
-                <Hourglass size={12} /> {daysUntilExam === 0 ? (t('examToday') || 'Exam today!') : `${daysUntilExam}d → ${nextExam.title}`}
-              </span>
-            )}
-          </div>
+              {announcement && (
+                <div className="panel rounded-xl p-4 flex items-center gap-3 fade-in border-l-2 !border-l-[#F2A93B]">
+                  <Megaphone size={16} className="text-[#F2A93B] shrink-0" />
+                  <div className="min-w-0">
+                    <span className="text-[11px] uppercase font-bold tracking-wider text-[#F2A93B] mr-2">{t('announcement') || 'Announcement'}</span>
+                    <span className="text-sm text-[var(--text)] font-medium">{announcement.title}</span>
+                    <p className="text-[var(--text-muted)] text-xs mt-0.5">{announcement.message}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* --- Daily Inspiration / Countdown ticker: persistent, always visible under the announcement --- */}
+              <div className="quote-gradient rounded-2xl p-4 border border-[var(--border)] flex items-center gap-3 fade-in">
+                <QuoteIcon size={15} className="text-[#F2A93B] shrink-0" />
+                <p key={quoteIndex} className="font-['Manrope'] text-sm text-[var(--text)] italic truncate">"{STUDY_QUOTES[quoteIndex]}"</p>
+                {nextExam && daysUntilExam !== null && (
+                  <span className="ml-auto shrink-0 flex items-center gap-1.5 text-xs font-['JetBrains_Mono'] text-[var(--text-muted-2)]">
+                    <Hourglass size={12} /> {daysUntilExam === 0 ? (t('examToday') || 'Exam today!') : `${daysUntilExam}d → ${nextExam.title}`}
+                  </span>
+                )}
+              </div>
+            </>
+          )}
 
           {/* --- Mobile tab bar --- */}
           <div className="md:hidden flex gap-1.5 overflow-x-auto pb-1">

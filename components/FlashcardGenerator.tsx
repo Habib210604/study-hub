@@ -185,11 +185,11 @@ export default function FlashcardGenerator() {
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-lg text-slate-200 flex items-center gap-2">
-          <Brain size={20} className="text-teal-400" /> AI Flashcards
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <h3 className="font-semibold text-base sm:text-lg text-slate-200 flex items-center gap-2">
+          <Brain size={18} className="text-teal-400 shrink-0" /> AI Flashcards
         </h3>
-        <div className="flex gap-1 bg-slate-950 border border-slate-800 rounded-lg p-1">
+        <div className="flex gap-1 bg-slate-950 border border-slate-800 rounded-lg p-1 self-start sm:self-auto">
           <button
             onClick={() => setMode('generate')}
             className={`px-3 py-1.5 text-xs font-medium rounded-md transition cursor-pointer ${mode === 'generate' ? 'bg-teal-600 text-white' : 'text-slate-400'}`}
