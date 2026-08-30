@@ -1023,9 +1023,18 @@ function StudyDashboardInner() {
                 </button>
               </div>
 
-              <AmbientPlayer />
+      {/* --- AI Assistant bubble: floats on every tab EXCEPT Assistant, where the full-screen chat is already shown --- */}
+      {activeTab !== 'assistant' && <StudyAiWidget />}
             </div>
+            
+      {/* --- Ambient Player: stays mounted across all tabs so Quran/rain playback never stops on tab switch; only visibly shown on the Focus tab --- */}
+      <div className="hidden">
+        <AmbientPlayer visible={activeTab === 'focus'} />
+      </div>
           )}
+          
+      {/* --- Ambient Player: stays mounted across all tabs so Quran/rain playback never stops on tab switch; only visibly shown on the Focus tab --- */}
+      <AmbientPlayer visible={activeTab === 'focus'} />
 
           {/* ============ SHARED FOCUS ROOM (all-day clock, sits alongside the personal timer) ============ */}
           {activeTab === 'focus' && (
