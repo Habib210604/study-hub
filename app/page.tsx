@@ -1316,15 +1316,13 @@ function StudyDashboardInner() {
               <AccountCenter session={session} />
             </div>
           )}
-
         </div>
-      </div>
 
+        {/* --- Ambient Player: stays mounted across all tabs so Quran/rain playback never stops on tab switch; only visibly shown on the Focus tab --- */}
+        <AmbientPlayer visible={activeTab === 'focus'} />
+      </div>
       {/* --- AI Assistant bubble: floats on every tab EXCEPT Assistant, where the full-screen chat is already shown --- */}
       {activeTab !== 'assistant' && <StudyAiWidget />}
-
-      {/* --- Ambient Player: stays mounted across all tabs so Quran/rain playback never stops on tab switch; only visibly shown on the Focus tab --- */}
-      <AmbientPlayer visible={activeTab === 'focus'} />
 
            {/* --- Floating focus timer: shows on every OTHER tab while a session is active, sits just above the AI bubble --- */}
       {activeTab !== 'focus' && (isRunning || roomActive) && (
