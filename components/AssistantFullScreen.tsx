@@ -134,7 +134,7 @@ export default function AssistantFullScreen() {
           <h3 className="font-semibold text-[var(--text)] text-sm md:text-base truncate">Study AI Assistant</h3>
         </div>
 
-        <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 md:space-y-4 px-1">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain space-y-3 md:space-y-4 px-1" style={{ WebkitOverflowScrolling: 'touch' }}>
           {loadingMessages ? (
             <div className="text-center text-[var(--text-muted)] text-sm mt-20">Loading conversation...</div>
           ) : messages.length === 0 ? (
