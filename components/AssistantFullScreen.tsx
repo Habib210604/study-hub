@@ -95,7 +95,7 @@ export default function AssistantFullScreen() {
   );
 
   return (
-    <div className="flex flex-col md:flex-row h-[65dvh] md:h-[75vh] gap-3 md:gap-4">
+    <div className="flex flex-col md:flex-row h-[calc(100dvh-9rem)] md:h-[75vh] gap-3 md:gap-4">
 
       {/* --- Desktop history sidebar (hidden on mobile) --- */}
       <div className="hidden md:flex w-56 shrink-0 border-r border-[var(--border)] pr-4">

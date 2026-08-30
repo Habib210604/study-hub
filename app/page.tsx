@@ -40,6 +40,14 @@ function StudyDashboardInner() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [theme, setTheme] = useState('dark');
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
+    useEffect(() => {
+    if (activeTab === 'assistant') {
+      document.body.classList.add('assistant-tab-active');
+    } else {
+      document.body.classList.remove('assistant-tab-active');
+    }
+    return () => document.body.classList.remove('assistant-tab-active');
+  }, [activeTab]);
 
   const [announcement, setAnnouncement] = useState<{ id: number; title: string; message: string } | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -615,6 +623,11 @@ function StudyDashboardInner() {
     <div className={`theme-${theme} min-h-screen font-['Inter'] transition-colors duration-300 relative flex bg-[var(--bg)] text-[var(--text)]`}>
 
       <style jsx global>{`
+        body.assistant-tab-active {
+          position: fixed;
+          overflow: hidden;
+          width: 100%;
+        }
         :root {
           --bg: #09090B;
           --panel: #111113;
