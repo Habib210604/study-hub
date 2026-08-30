@@ -752,7 +752,7 @@ function StudyDashboardInner() {
               {t('active') || 'Active'} · {currentDate.toLocaleDateString(localeMap[language] || 'en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
             </div>
             <div className="flex items-center gap-2">
-              <StreakTracker />
+              {activeTab === 'overview' && <StreakTracker />}
               <button
                 onClick={cycleLanguage}
                 className="px-2.5 py-1 text-[12px] font-medium text-[var(--text-muted-2)] hover:text-[var(--text)] hover:bg-[var(--surface-1)] rounded-md transition cursor-pointer"
