@@ -261,9 +261,10 @@ export default function Auth({ onLogin }) {
                       <input
                         type="text"
                         required
+                        autoComplete="given-name"
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
-                        placeholder="Habib"
+                        placeholder="First name"
                         className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-sm text-slate-200 focus:outline-none focus:border-teal-500"
                       />
                     </div>
@@ -272,9 +273,10 @@ export default function Auth({ onLogin }) {
                       <input
                         type="text"
                         required
+                        autoComplete="family-name"
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
-                        placeholder="Souani"
+                        placeholder="Last name"
                         className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-sm text-slate-200 focus:outline-none focus:border-teal-500"
                       />
                     </div>
