@@ -88,7 +88,7 @@ function StudyDashboardInner() {
 
   const [moods, setMoods] = useState<Record<string, string>>({});
   const [moodPickerDate, setMoodPickerDate] = useState<string | null>(null);
-
+  const [selectedDayEvents, setSelectedDayEvents] = useState<{ date: string; events: typeof events } | null>(null);
   const [quoteIndex, setQuoteIndex] = useState(0);
 
   // --- Command menu (Cmd/Ctrl+K) ---
@@ -1024,6 +1024,8 @@ function StudyDashboardInner() {
               </div>
             </div>
           )}
+          {/* --- Ambient Player: stays mounted across all tabs so Quran/rain playback never stops on tab switch; only visibly shown on the Focus tab --- */}
+          <AmbientPlayer visible={activeTab === 'focus'} />
 
           {/* ============ SHARED FOCUS ROOM (all-day clock, sits alongside the personal timer) ============ */}
           {activeTab === 'focus' && (
@@ -1163,7 +1165,7 @@ function StudyDashboardInner() {
                   <div key={d} className="text-[var(--text-faint)] text-[9px] md:text-[10px] font-bold py-1 md:py-1.5 uppercase tracking-wider truncate">{d}</div>
                 ))}
                 {Array.from({ length: firstDay }).map((_, idx) => (
-                  <div key={`empty-${idx}`} className="h-14 md:h-24 rounded-lg border border-[var(--border-faint)]"></div>
+                  <div key={`empty-${idx}`} className="h-20 md:h-24 rounded-lg border border-[var(--border-faint)]"></div>
                 ))}
                 {Array.from({ length: daysInMonth }).map((_, idx) => {
                   const dayNum = idx + 1;
@@ -1176,30 +1178,34 @@ function StudyDashboardInner() {
                   const dayMood = moods[fullDateStr];
 
                   return (
-                    <div key={dayNum} className={`h-14 md:h-24 p-1 md:p-1.5 rounded-lg border text-left flex flex-col justify-between relative transition ${holidayName ? 'bg-red-500/[0.06] border-red-400/20' : 'border-[var(--border)] hover:border-[var(--border-strong)]'}`}>
+                    <div
+                      key={dayNum}
+                      onClick={() => dayEvents.length > 0 && setSelectedDayEvents({ date: fullDateStr, events: dayEvents })}
+                      className={`h-20 md:h-24 p-1.5 rounded-lg border text-left flex flex-col justify-between relative transition ${dayEvents.length > 0 ? 'cursor-pointer' : ''} ${holidayName ? 'bg-red-500/[0.06] border-red-400/20' : 'border-[var(--border)] hover:border-[var(--border-strong)]'}`}
+                    >
                       <div className="flex justify-between items-start gap-0.5">
-                        <span className={`text-[10px] md:text-[11px] font-bold ${holidayName ? 'text-[var(--accent-red)]' : 'text-[var(--text)]'}`}>{dayNum}</span>
+                        <span className={`text-[13px] md:text-[11px] font-bold ${holidayName ? 'text-[var(--accent-red)]' : 'text-[var(--text)]'}`}>{dayNum}</span>
                         {holidayName && <span className="hidden md:inline text-[9px] bg-red-500/15 text-[var(--accent-red)] px-1 py-0.5 rounded truncate max-w-[70px]">🇹🇳 {holidayName}</span>}
-                        {holidayName && <span className="md:hidden text-[10px]">🇹🇳</span>}
-                        <button onClick={() => setMoodPickerDate(fullDateStr)} className="absolute top-0.5 right-0.5 w-3.5 h-3.5 md:w-4 md:h-4 flex items-center justify-center rounded-full hover:bg-[var(--surface-3)] transition cursor-pointer text-[10px] md:text-xs">
+                        {holidayName && <span className="md:hidden text-xs">🇹🇳</span>}
+                        <button onClick={(e) => { e.stopPropagation(); setMoodPickerDate(fullDateStr); }} className="absolute top-1 right-1 w-5 h-5 md:w-4 md:h-4 flex items-center justify-center rounded-full hover:bg-[var(--surface-3)] transition cursor-pointer text-xs md:text-xs">
                           {dayMood || <span className="w-1 h-1 rounded-full bg-white/20 block" />}
                         </button>
                       </div>
-                      <div className="space-y-0.5 md:space-y-1 overflow-y-auto max-h-6 md:max-h-10">
+                      <div className="space-y-0.5 md:space-y-1 overflow-hidden">
                         {dayEvents.length > 0 && (
                           <>
-                            {/* Mobile: just a dot per event, no text — keeps the cell readable */}
-                            <div className="md:hidden flex flex-wrap gap-0.5">
-                              {dayEvents.map((ev, evIdx) => (
-                                <span key={ev.id ?? evIdx} className="w-1.5 h-1.5 rounded-full bg-indigo-400 block" title={ev.title} />
-                              ))}
+                            {/* Mobile: a compact "N events" badge — tap the day to see full titles */}
+                            <div className="md:hidden">
+                              <span className="inline-block bg-indigo-500/20 text-indigo-300 text-[11px] font-semibold px-2 py-0.5 rounded-full">
+                                {dayEvents.length} {dayEvents.length === 1 ? 'event' : 'events'}
+                              </span>
                             </div>
                             {/* Desktop: full event chips as before */}
                             <div className="hidden md:block space-y-1">
                               {dayEvents.map((ev, evIdx) => (
                                 <div key={ev.id ?? evIdx} className="bg-indigo-500/[0.12] border border-indigo-400/20 text-[var(--accent-indigo)] text-[9px] p-1 rounded flex items-center justify-between group">
                                   <span className="truncate font-medium">{ev.title}</span>
-                                  <button onClick={() => deleteEvent(ev.id)} className="opacity-0 group-hover:opacity-100 text-red-400 transition cursor-pointer">×</button>
+                                  <button onClick={(e) => { e.stopPropagation(); deleteEvent(ev.id); }} className="opacity-0 group-hover:opacity-100 text-red-400 transition cursor-pointer">×</button>
                                 </div>
                               ))}
                             </div>
@@ -1317,9 +1323,6 @@ function StudyDashboardInner() {
             </div>
           )}
         </div>
-
-        {/* --- Ambient Player: stays mounted across all tabs so Quran/rain playback never stops on tab switch; only visibly shown on the Focus tab --- */}
-        <AmbientPlayer visible={activeTab === 'focus'} />
       </div>
       {/* --- AI Assistant bubble: floats on every tab EXCEPT Assistant, where the full-screen chat is already shown --- */}
       {activeTab !== 'assistant' && <StudyAiWidget />}
@@ -1406,6 +1409,34 @@ function StudyDashboardInner() {
       )}
 
       {/* --- Mood Picker Modal --- */}
+            {/* --- Day Events Modal: tap a calendar day on mobile to see full event titles --- */}
+      {selectedDayEvents && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setSelectedDayEvents(null)}>
+          <div className="panel rounded-2xl p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+            <h4 className="text-sm font-semibold text-[var(--text)] mb-1">{selectedDayEvents.date}</h4>
+            <p className="text-xs text-[var(--text-muted)] mb-4">{selectedDayEvents.events.length} event{selectedDayEvents.events.length === 1 ? '' : 's'} on this day</p>
+            <div className="space-y-2">
+              {selectedDayEvents.events.map((ev) => (
+                <div key={ev.id} className="bg-indigo-500/[0.1] border border-indigo-400/20 rounded-lg p-3 flex items-center justify-between">
+                  <span className="text-sm text-[var(--text)] font-medium">{ev.title}</span>
+                  <button
+                    onClick={() => {
+                      deleteEvent(ev.id);
+                      setSelectedDayEvents((prev) => prev ? { ...prev, events: prev.events.filter((e) => e.id !== ev.id) } : null);
+                    }}
+                    className="text-red-400 hover:text-red-300 transition cursor-pointer p-1"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setSelectedDayEvents(null)} className="w-full mt-4 text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition cursor-pointer">
+              Close
+            </button>
+          </div>
+        </div>
+      )}
       {moodPickerDate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setMoodPickerDate(null)}>
           <div className="panel rounded-2xl p-6 max-w-xs w-full" onClick={(e) => e.stopPropagation()}>
