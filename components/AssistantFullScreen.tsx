@@ -95,7 +95,7 @@ export default function AssistantFullScreen() {
   );
 
   return (
-    <div className="flex flex-col md:flex-row h-[500px] md:h-[75vh] gap-3 md:gap-4">
+    <div className="flex flex-col md:flex-row h-[500px] md:h-[75vh] gap-3 md:gap-4 overflow-hidden">
 
       {/* --- Desktop history sidebar (hidden on mobile) --- */}
       <div className="hidden md:flex w-56 shrink-0 border-r border-[var(--border)] pr-4">
@@ -122,7 +122,7 @@ export default function AssistantFullScreen() {
       )}
 
       {/* --- Chat panel --- */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
         <div className="flex items-center gap-2 pb-3 md:pb-4 border-b border-[var(--border)] mb-3 md:mb-4">
           <button
             onClick={() => setShowMobileHistory(true)}
@@ -134,7 +134,7 @@ export default function AssistantFullScreen() {
           <h3 className="font-semibold text-[var(--text)] text-sm md:text-base truncate">Study AI Assistant</h3>
         </div>
 
-        <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain space-y-3 md:space-y-4 px-1" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-3 md:space-y-4 px-1" style={{ WebkitOverflowScrolling: 'touch' }}>
           {loadingMessages ? (
             <div className="text-center text-[var(--text-muted)] text-sm mt-20">Loading conversation...</div>
           ) : messages.length === 0 ? (

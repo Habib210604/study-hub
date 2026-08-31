@@ -38,7 +38,7 @@ function StudyDashboardInner() {
   const [session, setSession] = useState<any>(null);
   const [userFirstName, setUserFirstName] = useState('');
   const [checkingAuth, setCheckingAuth] = useState(true);
-  const [theme, setTheme] = useState('dark');
+  const [theme, setTheme] = useState('light');
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
 
   const [announcement, setAnnouncement] = useState<{ id: number; title: string; message: string } | null>(null);
@@ -98,7 +98,7 @@ function StudyDashboardInner() {
   const commandInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') || 'dark';
+    const savedTheme = localStorage.getItem('theme') || 'light';
     setTheme(savedTheme);
     if (savedTheme === 'light') {
       document.documentElement.classList.remove('dark');
@@ -787,7 +787,7 @@ function StudyDashboardInner() {
                   <h1 className="font-['Manrope'] text-2xl md:text-3xl font-extrabold tracking-tight text-[var(--text)]">
                     {greeting}{firstName ? `, ${firstName}` : ''}.
                   </h1>
-                  <p className="text-[var(--text-muted)] text-sm mt-1">{t('readyToFocus') || "Let's make today count."}</p>
+                  <p className="text-[var(--text-secondary)] text-sm mt-1">{t('readyToFocus') || "Let's make today count."}</p>
                 </div>
               </div>
 
