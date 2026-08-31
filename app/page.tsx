@@ -43,6 +43,7 @@ function StudyDashboardInner() {
 
   const [announcement, setAnnouncement] = useState<{ id: number; title: string; message: string } | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const todayForDisplay = new Date();
   const [events, setEvents] = useState<{ id: number; title: string; event_date: string; type: string }[]>([]);
   const [newEventTitle, setNewEventTitle] = useState('');
   const [newEventDate, setNewEventDate] = useState('');
@@ -750,7 +751,7 @@ function StudyDashboardInner() {
               <span className="relative flex h-1.5 w-1.5">
                 <span className="pulse-dot absolute inline-flex h-full w-full rounded-full bg-emerald-400" />
               </span>
-              {t('active') || 'Active'} · {currentDate.toLocaleDateString(localeMap[language] || 'en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+              {t('active') || 'Active'} · {todayForDisplay.toLocaleDateString(localeMap[language] || 'en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
             </div>
             <div className="flex items-center gap-2">
               {activeTab === 'overview' && <StreakTracker />}

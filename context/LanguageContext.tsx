@@ -286,7 +286,7 @@ export const STUDY_QUOTES_BY_LANG: Record<string, string[]> = {
 export const HOLIDAY_NAMES_BY_LANG: Record<string, Record<string, string>> = {
   en: {
     '01-01': "New Year's Day",
-    '01-14': 'Revolution & Youth Day',
+    '12-17': 'Revolution & Youth Day',
     '03-20': 'Independence Day',
     '04-09': "Martyrs' Day",
     '05-01': 'Labor Day',
@@ -296,7 +296,7 @@ export const HOLIDAY_NAMES_BY_LANG: Record<string, Record<string, string>> = {
   },
   fr: {
     '01-01': 'Jour de l\u2019An',
-    '01-14': 'Fête de la Révolution et de la Jeunesse',
+    '12-17': 'Fête de la Révolution et de la Jeunesse',
     '03-20': 'Fête de l\u2019Indépendance',
     '04-09': 'Journée des Martyrs',
     '05-01': 'Fête du Travail',
@@ -306,7 +306,7 @@ export const HOLIDAY_NAMES_BY_LANG: Record<string, Record<string, string>> = {
   },
   ar: {
     '01-01': 'رأس السنة الميلادية',
-    '01-14': 'عيد الثورة والشباب',
+    '12-17': 'عيد الثورة والشباب',
     '03-20': 'عيد الاستقلال',
     '04-09': 'عيد الشهداء',
     '05-01': 'عيد الشغل',
